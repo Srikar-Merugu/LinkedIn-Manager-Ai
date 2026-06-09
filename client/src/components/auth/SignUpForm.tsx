@@ -160,10 +160,10 @@ export function SignUpForm() {
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="Enter verification code"
-              className="w-full px-4 py-3 rounded-xl text-sm text-white/80 placeholder-white/30 text-center tracking-[0.5em] font-mono
-                bg-white/[0.04] border border-white/[0.06]
-                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06]
+              placeholder="Enter code"
+              className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/40 text-center tracking-[0.5em] font-mono
+                bg-white/[0.06] border border-white/[0.08]
+                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.08]
                 transition-all duration-300"
               autoComplete="one-time-code"
               inputMode="numeric"
@@ -246,11 +246,11 @@ export function SignUpForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address"
-            className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white/80 placeholder-white/30
-              bg-white/[0.04] border border-white/[0.06]
-              focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06]
-              transition-all duration-300"
+              placeholder="Email address"
+              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white placeholder-white/40
+                bg-white/[0.06] border border-white/[0.08]
+                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.08]
+                transition-all duration-300"
             autoComplete="email"
           />
         </div>
@@ -265,9 +265,9 @@ export function SignUpForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a password"
-              className="w-full pl-10 pr-12 py-3 rounded-xl text-sm text-white/80 placeholder-white/30
-                bg-white/[0.04] border border-white/[0.06]
-                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06]
+              className="w-full pl-10 pr-12 py-3 rounded-xl text-sm text-white placeholder-white/40
+                bg-white/[0.06] border border-white/[0.08]
+                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.08]
                 transition-all duration-300"
               autoComplete="new-password"
             />

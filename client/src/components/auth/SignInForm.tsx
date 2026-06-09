@@ -92,9 +92,9 @@ export function SignInForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email address"
-              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white/80 placeholder-white/30
-                bg-white/[0.04] border border-white/[0.06]
-                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06]
+              className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white placeholder-white/40
+                bg-white/[0.06] border border-white/[0.08]
+                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.08]
                 transition-all duration-300"
               autoComplete="email"
             />
@@ -109,9 +109,9 @@ export function SignInForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="w-full pl-10 pr-12 py-3 rounded-xl text-sm text-white/80 placeholder-white/30
-                bg-white/[0.04] border border-white/[0.06]
-                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06]
+              className="w-full pl-10 pr-12 py-3 rounded-xl text-sm text-white placeholder-white/40
+                bg-white/[0.06] border border-white/[0.08]
+                focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.08]
                 transition-all duration-300"
               autoComplete="current-password"
             />
