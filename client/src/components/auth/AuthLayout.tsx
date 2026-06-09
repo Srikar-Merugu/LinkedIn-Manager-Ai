@@ -4,25 +4,11 @@ import { AuroraBackground } from './AuroraBackground';
 import { ParticleField } from './ParticleField';
 import { FloatingCards } from './FloatingCards';
 
-const stats = [
-  { value: '12,000+', label: 'Professionals' },
-  { value: '3.2M+', label: 'Content Impressions' },
-  { value: '150K+', label: 'AI Suggestions' },
-];
-
 interface AuthLayoutProps {
-  title?: string;
-  badge?: string;
   children: React.ReactNode;
-  footer: React.ReactNode;
 }
 
-export function AuthLayout({
-  title = 'Welcome to PersonaOS',
-  badge = 'AI-Powered Growth Platform',
-  children,
-  footer,
-}: AuthLayoutProps) {
+export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="flex min-h-screen bg-[#050816] overflow-hidden">
       <div className="hidden lg:flex flex-1 relative items-center justify-center overflow-hidden">
@@ -42,7 +28,7 @@ export function AuthLayout({
           <div className="mt-32">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/[0.06] bg-white/[0.02] mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-400 animate-pulse" />
-              <span className="text-[11px] text-white/40 font-medium tracking-wide">AI Operating System</span>
+              <span className="text-[11px] text-white/40 font-medium tracking-wide">AI-Powered Personal Branding OS</span>
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
@@ -56,17 +42,8 @@ export function AuthLayout({
             </h1>
 
             <p className="mt-4 text-base text-white/40 leading-relaxed max-w-md">
-              The AI Operating System for LinkedIn Growth. Analyze your profile, build your brand DNA, generate content, find opportunities.
+              Connect your professional identity and let AI build your growth system.
             </p>
-
-            <div className="mt-8 flex flex-wrap gap-8">
-              {stats.map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-xl font-bold text-white/80 tracking-tight">{stat.value}</div>
-                  <div className="text-xs text-white/30 mt-0.5">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="mt-16">
@@ -78,7 +55,7 @@ export function AuthLayout({
       <div className="flex-1 lg:flex-none lg:w-[480px] relative flex items-center justify-center p-6">
         <div className="absolute inset-0 bg-gradient-to-l from-white/[0.02] to-transparent pointer-events-none" />
 
-        <div className="relative w-full max-w-[420px]">
+        <div className="relative w-full max-w-[440px]">
           <div
             className="relative rounded-2xl p-8 border backdrop-blur-xl"
             style={{
@@ -96,19 +73,15 @@ export function AuthLayout({
 
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full border border-white/[0.06] bg-white/[0.02] mb-4">
               <span className="w-1 h-1 rounded-full bg-accent-400 animate-pulse" />
-              <span className="text-[10px] text-white/40 font-medium tracking-wide">{badge}</span>
+              <span className="text-[10px] text-white/40 font-medium tracking-wide">AI-Powered Personal Branding OS</span>
             </div>
 
-            <h2 className="text-2xl font-bold text-white/90 tracking-tight">{title}</h2>
-            <p className="text-sm text-white/40 mt-1 mb-8">
-              Start building opportunities with AI.
+            <h2 className="text-2xl font-bold text-white/90 tracking-tight">Welcome to PersonaOS</h2>
+            <p className="text-sm text-white/40 mt-1 mb-7">
+              Connect your professional identity to unlock your AI growth system.
             </p>
 
             {children}
-          </div>
-
-          <div className="mt-6 text-center">
-            {footer}
           </div>
         </div>
       </div>
