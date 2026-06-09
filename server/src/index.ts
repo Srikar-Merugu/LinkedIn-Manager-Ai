@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import pino from 'pino';
 import { env } from './config/env';
 import { connectDatabase } from './config/database';
@@ -45,6 +46,7 @@ async function bootstrap(): Promise<void> {
     origin: process.env.CLIENT_URL || 'http://localhost:3000',
     credentials: true,
   }));
+  app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 

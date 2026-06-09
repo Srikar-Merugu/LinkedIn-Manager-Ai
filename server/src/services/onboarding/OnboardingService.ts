@@ -33,25 +33,19 @@ function getNextStep(current: OnboardingStep): OnboardingStep | null {
   return STEP_ORDER[idx + 1];
 }
 
+const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
+
 export class OnboardingService {
-  async getOrCreateState(clerkId: string, userEmail?: string, fullName?: string): Promise<IOnboardingState> {
-    let state = await OnboardingState.findOne({ clerkId });
+  async getOrCreateState(userId: string): Promise<IOnboardingState> {
+    let state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (state) return state;
 
-    let user = await User.findOne({ clerkId });
-    if (!user) {
-      user = await User.create({
-        clerkId,
-        email: userEmail || `${clerkId}@placeholder.com`,
-        fullName: fullName || 'User',
-        onboardingStatus: 'not_started',
-        onboardingStep: 0,
-      });
-    }
+    const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
 
     state = await OnboardingState.create({
       userId: user._id,
-      clerkId,
+      clerkId: userId,
       status: 'in_progress',
       currentStep: 'welcome',
       completedSteps: [],
@@ -75,12 +69,12 @@ export class OnboardingService {
     return state;
   }
 
-  async getState(clerkId: string): Promise<IOnboardingState | null> {
-    return OnboardingState.findOne({ clerkId });
+  async getState(userId: string): Promise<IOnboardingState | null> {
+    return OnboardingState.findOne({ userId: toObjectId(userId) });
   }
 
-  async completeStep(clerkId: string, step: OnboardingStep, data: Record<string, unknown> = {}): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async completeStep(userId: string, step: OnboardingStep, data: Record<string, unknown> = {}): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     if (state.completedSteps.includes(step)) return state;
@@ -108,7 +102,7 @@ export class OnboardingService {
     await state.save();
 
     const stepIndex = getStepIndex(step) + 1;
-    await User.findOneAndUpdate({ clerkId }, {
+    await User.findByIdAndUpdate(userId, {
       onboardingStep: stepIndex,
       onboardingStatus: step === 'results' ? 'complete' : 'linkedin_connected',
     });
@@ -116,8 +110,8 @@ export class OnboardingService {
     return state;
   }
 
-  async skipStep(clerkId: string, step: OnboardingStep): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async skipStep(userId: string, step: OnboardingStep): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     if (state.completedSteps.includes(step)) return state;
@@ -141,8 +135,8 @@ export class OnboardingService {
     return state;
   }
 
-  async saveLinkedInData(clerkId: string, profileId: string, accessToken: string): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async saveLinkedInData(userId: string, profileId: string, accessToken: string): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.connectedSources.linkedin = {
@@ -153,11 +147,11 @@ export class OnboardingService {
     };
 
     await state.save();
-    return this.completeStep(clerkId, 'connect_linkedin', { profileId });
+    return this.completeStep(userId, 'connect_linkedin', { profileId });
   }
 
   async saveResumeData(
-    clerkId: string,
+    userId: string,
     fileInfo: { fileName: string; fileType: string; fileSize: number },
     parsedData: {
       rawText: string;
@@ -170,12 +164,12 @@ export class OnboardingService {
       languages: string[];
     }
   ): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     const resume = await ResumeData.create({
       userId: state.userId,
-      clerkId,
+      clerkId: userId,
       onboardingStateId: state._id,
       originalFileName: fileInfo.fileName,
       fileType: fileInfo.fileType,
@@ -201,16 +195,16 @@ export class OnboardingService {
     };
 
     await state.save();
-    return this.completeStep(clerkId, 'upload_resume', { resumeId: resume._id, skillsCount: parsedData.skills.length });
+    return this.completeStep(userId, 'upload_resume', { resumeId: resume._id, skillsCount: parsedData.skills.length });
   }
 
-  async saveGitHubData(clerkId: string, username: string, githubInfo: Record<string, unknown>): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async saveGitHubData(userId: string, username: string, githubInfo: Record<string, unknown>): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
-    const ghData = await GitHubData.create({
+    await GitHubData.create({
       userId: state.userId,
-      clerkId,
+      clerkId: userId,
       onboardingStateId: state._id,
       username,
       ...githubInfo,
@@ -225,62 +219,35 @@ export class OnboardingService {
     };
 
     await state.save();
-    return this.completeStep(clerkId, 'connect_github', { githubDataId: ghData._id, repos: (githubInfo as any).publicRepos });
+    return this.completeStep(userId, 'connect_github', { githubDataId: (githubInfo as any).githubDataId, repos: (githubInfo as any).publicRepos });
   }
 
-  async savePortfolioData(clerkId: string, url: string, portfolioInfo: Record<string, unknown>): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
-    if (!state) throw new Error('Onboarding state not found');
-
-    const pfData = await PortfolioData.create({
-      userId: state.userId,
-      clerkId,
-      onboardingStateId: state._id,
-      url,
-      title: portfolioInfo.title as string | undefined,
-      description: portfolioInfo.description as string | undefined,
-      aboutContent: portfolioInfo.aboutContent as string | undefined,
-      skills: portfolioInfo.skills as string[] | undefined,
-      rawContent: portfolioInfo.rawContent as string | undefined,
-    });
-
-    state.connectedSources.portfolio = {
-      connected: true,
-      url,
-      pages: (portfolioInfo as any).entries?.length || 0,
-      syncedAt: new Date(),
-    };
-
-    await state.save();
-    return this.completeStep(clerkId, 'connect_portfolio', { portfolioDataId: pfData._id });
-  }
-
-  async saveCareerGoals(clerkId: string, goals: string[]): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async saveCareerGoals(userId: string, goals: string[]): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.careerGoals = goals;
     await state.save();
-    return this.completeStep(clerkId, 'career_goals', { goals });
+    return this.completeStep(userId, 'career_goals', { goals });
   }
 
-  async saveContentExperience(clerkId: string, frequency: string): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async saveContentExperience(userId: string, frequency: string): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.postingFrequency = frequency as any;
     await state.save();
-    return this.completeStep(clerkId, 'content_experience', { frequency });
+    return this.completeStep(userId, 'content_experience', { frequency });
   }
 
-  async saveVoiceSamples(clerkId: string, samples: Array<{ sourceType: string; content: string; title?: string; sourceUrl?: string; contentType: string }>): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async saveVoiceSamples(userId: string, samples: Array<{ sourceType: string; content: string; title?: string; sourceUrl?: string; contentType: string }>): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     for (const sample of samples) {
       await VoiceSample.create({
         userId: state.userId,
-        clerkId,
+        clerkId: userId,
         onboardingStateId: state._id,
         sourceType: sample.sourceType,
         content: sample.content,
@@ -293,11 +260,11 @@ export class OnboardingService {
 
     state.voiceSamplesCount = (state.voiceSamplesCount || 0) + samples.length;
     await state.save();
-    return this.completeStep(clerkId, 'voice_training', { samplesCount: samples.length });
+    return this.completeStep(userId, 'voice_training', { samplesCount: samples.length });
   }
 
-  async startAIAnalysis(clerkId: string): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async startAIAnalysis(userId: string): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.analysisStatus = 'in_progress';
@@ -308,8 +275,8 @@ export class OnboardingService {
     return state;
   }
 
-  async updateAnalysisProgress(clerkId: string, progress: number, logEntry?: string): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async updateAnalysisProgress(userId: string, progress: number, logEntry?: string): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.analysisProgress = Math.min(progress, 100);
@@ -331,8 +298,8 @@ export class OnboardingService {
     return state;
   }
 
-  async failAnalysis(clerkId: string, error: string): Promise<IOnboardingState> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async failAnalysis(userId: string, error: string): Promise<IOnboardingState> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) throw new Error('Onboarding state not found');
 
     state.analysisStatus = 'failed';
@@ -341,21 +308,21 @@ export class OnboardingService {
     return state;
   }
 
-  async markRedirected(clerkId: string): Promise<void> {
+  async markRedirected(userId: string): Promise<void> {
     await OnboardingState.findOneAndUpdate(
-      { clerkId },
+      { userId: toObjectId(userId) },
       { onboardingCompleteRedirected: true, status: 'completed' }
     );
   }
 
-  async getOnboardingProgress(clerkId: string): Promise<{
+  async getOnboardingProgress(userId: string): Promise<{
     state: IOnboardingState | null;
     totalSteps: number;
     completedCount: number;
     percentage: number;
     currentStepIndex: number;
   }> {
-    const state = await OnboardingState.findOne({ clerkId });
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) return { state: null, totalSteps: STEP_ORDER.length, completedCount: 0, percentage: 0, currentStepIndex: 0 };
 
     const completedCount = state.completedSteps.length;
@@ -368,8 +335,8 @@ export class OnboardingService {
     };
   }
 
-  async getOnboardingSummary(clerkId: string): Promise<Record<string, unknown>> {
-    const state = await this.getState(clerkId);
+  async getOnboardingSummary(userId: string): Promise<Record<string, unknown>> {
+    const state = await this.getState(userId);
     if (!state) return {};
 
     const resume = state.connectedSources.resume.connected
@@ -402,12 +369,12 @@ export class OnboardingService {
     };
   }
 
-  async abort(clerkId: string): Promise<void> {
-    await OnboardingState.findOneAndUpdate({ clerkId }, { status: 'abandoned' });
+  async abort(userId: string): Promise<void> {
+    await OnboardingState.findOneAndUpdate({ userId: toObjectId(userId) }, { status: 'abandoned' });
   }
 
-  async resume(clerkId: string): Promise<IOnboardingState | null> {
-    const state = await OnboardingState.findOne({ clerkId, status: { $in: ['in_progress', 'abandoned'] } });
+  async resume(userId: string): Promise<IOnboardingState | null> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId), status: { $in: ['in_progress', 'abandoned'] } });
     if (!state) return null;
     if (state.status === 'abandoned') {
       state.status = 'in_progress';
@@ -416,8 +383,8 @@ export class OnboardingService {
     return state;
   }
 
-  async getStepData(clerkId: string, step: OnboardingStep): Promise<Record<string, unknown> | null> {
-    const state = await OnboardingState.findOne({ clerkId });
+  async getStepData(userId: string, step: OnboardingStep): Promise<Record<string, unknown> | null> {
+    const state = await OnboardingState.findOne({ userId: toObjectId(userId) });
     if (!state) return null;
     const entry = state.stepData.find((s: any) => s.step === step);
     return entry ? (entry as any).data || {} : null;

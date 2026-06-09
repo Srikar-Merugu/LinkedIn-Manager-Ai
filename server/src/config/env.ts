@@ -18,7 +18,17 @@ export const env = {
     scopes: ['openid', 'profile', 'email', 'w_member_social'],
   },
 
-  clerkWebhookSecret: process.env.CLERK_WEBHOOK_SECRET || '',
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/auth/google/callback',
+  },
+
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:4000/api/auth/github/callback',
+  },
 
   encryptionKey: process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars!!',
 

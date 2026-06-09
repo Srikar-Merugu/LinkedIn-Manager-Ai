@@ -10,23 +10,15 @@ import { LinkedInProject } from '../models/LinkedInProject';
 import { LinkedInCertificate } from '../models/LinkedInCertificate';
 import { User } from '../models/identity/User';
 import { OnboardingState } from '../models/onboarding/OnboardingState';
+import { getTokenFromReq, verifyToken } from '../utils/jwt';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  const userId = req.headers['x-clerk-user-id'] as string;
-  const authHeader = req.headers['authorization'];
-  if (userId) return userId;
-  if (authHeader?.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.split(' ')[1];
-      const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      return decoded.sub || decoded.userId || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
+function getUserId(req: Request): string | null {
+  const token = getTokenFromReq(req);
+  if (!token) return null;
+  const payload = verifyToken(token);
+  return payload?.userId || null;
 }
 
 export function createProfileRouter(
@@ -71,23 +63,17 @@ export function createProfileRouter(
         return res.status(400).json({ error: 'Missing required field: accessToken' });
       }
 
-      const clerkId = getClerkId(req);
-      if (!clerkId) {
+      const userId = getUserId(req);
+      if (!userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      let user = await User.findOne({ clerkId });
+      let user = await User.findById(userId);
       if (!user) {
-        user = await User.create({
-          clerkId,
-          email: `${clerkId}@placeholder.com`,
-          fullName: 'User',
-          onboardingStatus: 'not_started',
-          onboardingStep: 0,
-        });
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      logger.info({ clerkId }, 'Starting profile sync');
+      logger.info({ userId }, 'Starting profile sync');
 
       const onPhase = async (phase: SyncPhase, status: string) => {
         logger.debug({ phase, status }, 'Sync phase update');
@@ -100,7 +86,7 @@ export function createProfileRouter(
         await cachingLayer.invalidatePattern('profile:*');
 
         await OnboardingState.findOneAndUpdate(
-          { clerkId },
+          { userId: user._id },
           {
             $set: {
               'connectedSources.linkedin': {
@@ -131,12 +117,17 @@ export function createProfileRouter(
 
   router.get('/by-user', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) {
+      const currentUserId = getUserId(req);
+      if (!currentUserId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const state = await OnboardingState.findOne({ clerkId });
+      const user = await User.findById(currentUserId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const state = await OnboardingState.findOne({ userId: user._id });
 
       if (state?.connectedSources?.linkedin?.profileId) {
         const profile = await LinkedInProfile.findById(
@@ -146,8 +137,6 @@ export function createProfileRouter(
           return res.json(profile);
         }
       }
-
-      const user = await User.findOne({ clerkId });
       if (user) {
         const profile = await LinkedInProfile.findOne({
           userId: user._id,

@@ -2,10 +2,13 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 import { AutomationMode, OnboardingStatus, SubscriptionPlan } from '../../types/database';
 
 export interface IUser extends Document {
-  clerkId: string;
+  clerkId?: string;
   email: string;
+  passwordHash?: string;
   fullName: string;
   avatar?: string;
+  googleId?: string;
+  githubId?: string;
   subscriptionPlan: SubscriptionPlan;
   subscriptionId?: mongoose.Types.ObjectId;
   onboardingStatus: OnboardingStatus;
@@ -54,22 +57,25 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>({
   clerkId: {
     type: String,
-    required: true,
-    unique: true,
+    sparse: true,
     index: true,
   },
   email: {
     type: String,
     required: true,
+    unique: true,
     lowercase: true,
     trim: true,
   },
+  passwordHash: String,
   fullName: {
     type: String,
     required: true,
     trim: true,
   },
   avatar: String,
+  googleId: { type: String, sparse: true, index: true },
+  githubId: { type: String, sparse: true, index: true },
 
   subscriptionPlan: {
     type: String,
