@@ -1,5 +1,0 @@
-{
-  "buildCommand": "NODE_ENV=production next build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install"
-}
