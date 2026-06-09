@@ -30,6 +30,12 @@ export const env = {
     redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:4000/api/auth/github/callback',
   },
 
+  clerk: {
+    secretKey: process.env.CLERK_SECRET_KEY || '',
+    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '',
+    webhookSecret: process.env.CLERK_WEBHOOK_SECRET || '',
+  },
+
   encryptionKey: process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars!!',
 
   cacheTtl: parseInt(process.env.CACHE_TTL || '300', 10),

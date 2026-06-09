@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useUser, useClerk } from '@clerk/nextjs';
+import { useSignIn } from '@clerk/nextjs/legacy';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -16,98 +18,111 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string) => Promise<void>;
+  loginWithOAuth: (strategy: 'oauth_linkedin' | 'oauth_google' | 'oauth_github') => Promise<void>;
+  loginWithEmailOTP: (email: string) => Promise<void>;
+  verifyEmailOTP: (email: string, code: string) => Promise<void>;
+  loginWithMagicLink: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  openEmailAuth: () => void;
+  showEmailAuth: boolean;
+  setShowEmailAuth: (show: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
+  const { signIn } = useSignIn();
+  const { signOut } = useClerk();
   const router = useRouter();
-
-  const fetchUser = useCallback(async () => {
-    try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const [mappedUser, setMappedUser] = useState<User | null>(null);
+  const [showEmailAuth, setShowEmailAuth] = useState(false);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
-
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      credentials: 'include',
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Login failed');
+    if (isLoaded && isSignedIn && clerkUser) {
+      setMappedUser({
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        fullName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User',
+        avatar: clerkUser.imageUrl || undefined,
+        onboardingStatus: (clerkUser.publicMetadata as any)?.onboardingStatus,
+        subscriptionPlan: (clerkUser.publicMetadata as any)?.subscriptionPlan,
+      });
+    } else if (isLoaded && !isSignedIn) {
+      setMappedUser(null);
     }
+  }, [clerkUser, isLoaded, isSignedIn]);
 
-    const data = await res.json();
-    setUser(data.user);
-    router.push('/onboarding');
-  }, [router]);
-
-  const signup = useCallback(async (email: string, password: string, fullName: string) => {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName }),
-      credentials: 'include',
+  const loginWithOAuth = useCallback(async (strategy: 'oauth_linkedin' | 'oauth_google' | 'oauth_github') => {
+    if (!signIn) return;
+    await signIn.authenticateWithRedirect({
+      strategy,
+      redirectUrl: '/sso-callback',
+      redirectUrlComplete: '/sign-in?success=true',
     });
+  }, [signIn]);
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Registration failed');
+  const loginWithEmailOTP = useCallback(async (email: string) => {
+    if (!signIn) throw new Error('Sign in not initialized');
+    await signIn.create({
+      identifier: email,
+      strategy: 'email_code',
+    });
+  }, [signIn]);
+
+  const verifyEmailOTP = useCallback(async (email: string, code: string) => {
+    if (!signIn) throw new Error('Sign in not initialized');
+    const result = await signIn.attemptFirstFactor({
+      strategy: 'email_code',
+      code,
+    });
+    if (result.status === 'complete') {
+      await (signIn as any).setActive?.({ session: result.createdSessionId });
+      router.push('/sso-callback');
     }
+  }, [signIn, router]);
 
-    const data = await res.json();
-    setUser(data.user);
-    router.push('/onboarding');
-  }, [router]);
+  const loginWithMagicLink = useCallback(async (email: string) => {
+    if (!signIn) throw new Error('Sign in not initialized');
+    await signIn.create({
+      identifier: email,
+      strategy: 'email_link',
+      redirectUrl: `${window.location.origin}/sso-callback`,
+    });
+  }, [signIn]);
 
   const logout = useCallback(async () => {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-    setUser(null);
-    router.push('/sign-in');
-  }, [router]);
+    await signOut();
+    setMappedUser(null);
+    router.push('/');
+  }, [signOut, router]);
 
   const refreshUser = useCallback(async () => {
-    await fetchUser();
-  }, [fetchUser]);
+    if (clerkUser) {
+      await clerkUser.reload();
+    }
+  }, [clerkUser]);
+
+  const openEmailAuth = useCallback(() => {
+    setShowEmailAuth(true);
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        signup,
+        user: mappedUser,
+        isLoading: !isLoaded,
+        isAuthenticated: !!isSignedIn,
+        loginWithOAuth,
+        loginWithEmailOTP,
+        verifyEmailOTP,
+        loginWithMagicLink,
         logout,
         refreshUser,
+        openEmailAuth,
+        showEmailAuth,
+        setShowEmailAuth,
       }}
     >
       {children}

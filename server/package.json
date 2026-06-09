@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/backend": "^3.5.0",
     "@types/cheerio": "^0.22.35",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
@@ -31,6 +32,7 @@
     "mongoose": "^8.0.3",
     "pino": "^8.16.1",
     "pino-pretty": "^10.2.3",
+    "svix": "^1.95.2",
     "typescript": "5.9.3",
     "uuid": "^9.0.0",
     "zod": "^3.22.4"
