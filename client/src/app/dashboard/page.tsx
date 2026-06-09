@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Linkedin,
@@ -25,7 +25,8 @@ import { MotionDiv, StaggerContainer, StaggerItem } from '@/components/ui/Motion
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isAuthenticated, isLoading: isLoaded } = useAuth();
+  const isSignedIn = isAuthenticated;
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);

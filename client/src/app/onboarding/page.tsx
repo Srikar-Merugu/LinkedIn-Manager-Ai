@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { WelcomeScreen } from '@/components/onboarding/WelcomeScreen';
 import { ConnectLinkedInStep } from '@/components/onboarding/ConnectLinkedInStep';
@@ -19,7 +19,8 @@ import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { isAuthenticated, isLoading: isLoaded } = useAuth();
+  const isSignedIn = isAuthenticated;
   const {
     currentStep, currentStepIndex, percentage, totalSteps,
     loading, error, isAnalysisRunning, analysisProgress, analysisLog,

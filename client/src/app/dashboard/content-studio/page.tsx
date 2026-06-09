@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import {
@@ -33,7 +33,7 @@ const SOURCE_TYPES = [
 ];
 
 export default function ContentStudioPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('create');
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);

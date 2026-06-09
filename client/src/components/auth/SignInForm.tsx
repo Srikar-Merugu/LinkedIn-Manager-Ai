@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSignIn } from '@clerk/nextjs/legacy';
-import { useAuth } from '@clerk/nextjs';
+import { useSearchParams } from 'next/navigation';
 import { LinkedInButton } from './LinkedInButton';
 import { GoogleButton } from './GoogleButton';
 import { GitHubButton } from './GitHubButton';
@@ -19,44 +18,39 @@ const benefits = [
 
 const trusts = [
   'Enterprise Grade Security',
-  'Powered by Clerk Authentication',
+  'Powered by JWT Authentication',
   'SOC 2 Compliant',
   'Encrypted Data',
 ];
 
+function getBackendUrl(): string {
+  if (typeof window !== 'undefined') {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) return apiUrl.replace(/\/api$/, '');
+  }
+  return '';
+}
+
 export function SignInForm() {
-  const { signIn } = useSignIn();
-  const { isSignedIn } = useAuth();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [showLoading, setShowLoading] = useState(false);
 
-  if (isSignedIn && !showLoading) {
+  if (searchParams.get('success') === 'true' || showLoading) {
     return <AuthLoadingSequence onComplete={() => window.location.href = '/onboarding'} />;
   }
 
-  if (showLoading) {
-    return <AuthLoadingSequence onComplete={() => window.location.href = '/onboarding'} />;
-  }
-
-  const handleOAuth = async (strategy: 'oauth_linkedin' | 'oauth_google' | 'oauth_github') => {
-    if (!signIn) return;
-    setIsLoading(strategy);
-    try {
-      await signIn.authenticateWithRedirect({
-        strategy,
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
-      });
-    } catch {
-      setIsLoading(null);
-    }
+  const handleOAuth = (provider: 'linkedin' | 'google' | 'github') => {
+    setIsLoading(provider);
+    const backendUrl = getBackendUrl();
+    window.location.href = `${backendUrl}/api/auth/${provider}`;
   };
 
   return (
     <div className="space-y-5">
       <LinkedInButton
-        onClick={() => handleOAuth('oauth_linkedin')}
-        isLoading={isLoading === 'oauth_linkedin'}
+        onClick={() => handleOAuth('linkedin')}
+        isLoading={isLoading === 'linkedin'}
       />
 
       <div className="relative flex items-center gap-3">
@@ -67,12 +61,12 @@ export function SignInForm() {
 
       <div className="space-y-3">
         <GoogleButton
-          onClick={() => handleOAuth('oauth_google')}
-          isLoading={isLoading === 'oauth_google'}
+          onClick={() => handleOAuth('google')}
+          isLoading={isLoading === 'google'}
         />
         <GitHubButton
-          onClick={() => handleOAuth('oauth_github')}
-          isLoading={isLoading === 'oauth_github'}
+          onClick={() => handleOAuth('github')}
+          isLoading={isLoading === 'github'}
         />
       </div>
 

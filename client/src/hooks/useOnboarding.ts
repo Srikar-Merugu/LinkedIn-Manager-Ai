@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
 type OnboardingStep =
@@ -56,7 +56,8 @@ const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
 };
 
 export function useOnboarding() {
-  const { user, isLoaded, isSignedIn } = useUser();
+  const { user, isAuthenticated, isLoading: isLoaded } = useAuth();
+  const isSignedIn = isAuthenticated;
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [completedSteps, setCompletedSteps] = useState<OnboardingStep[]>([]);
   const [percentage, setPercentage] = useState(0);

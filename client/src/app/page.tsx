@@ -3,10 +3,10 @@
 import { motion } from 'framer-motion';
 import { Sparkles, BarChart3, Shield, ArrowRight, Linkedin } from 'lucide-react';
 import Link from 'next/link';
-import { useUser, SignInButton, SignUpButton } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LandingPage() {
-  const { isSignedIn, user } = useUser();
+  const { isAuthenticated, user } = useAuth();
   const features = [
     {
       icon: BarChart3,
@@ -43,22 +43,20 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {isSignedIn ? (
+            {isAuthenticated ? (
               <Link href="/dashboard" className="btn-primary text-sm">
                 Dashboard
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Link>
             ) : (
               <>
-                <SignInButton mode="modal">
-                  <button className="btn-secondary text-sm">Sign In</button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className="btn-primary text-sm">
-                    Get Started
-                    <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </button>
-                </SignUpButton>
+                <Link href="/sign-in" className="btn-secondary text-sm">
+                  Sign In
+                </Link>
+                <Link href="/sign-in" className="btn-primary text-sm">
+                  Get Started
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Link>
               </>
             )}
           </div>
@@ -90,18 +88,16 @@ export default function LandingPage() {
               </p>
 
               <div className="flex items-center justify-center gap-4">
-                {isSignedIn ? (
+                {isAuthenticated ? (
                   <Link href="/onboarding" className="btn-primary text-base px-8 py-3.5 gap-2 glow">
                     Continue Onboarding
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 ) : (
-                  <SignUpButton mode="modal">
-                    <button className="btn-primary text-base px-8 py-3.5 gap-2 glow">
-                      Start Your Brand Strategy
-                      <Sparkles className="w-5 h-5" />
-                    </button>
-                  </SignUpButton>
+                  <Link href="/sign-in" className="btn-primary text-base px-8 py-3.5 gap-2 glow">
+                    Start Your Brand Strategy
+                    <Sparkles className="w-5 h-5" />
+                  </Link>
                 )}
               </div>
             </motion.div>

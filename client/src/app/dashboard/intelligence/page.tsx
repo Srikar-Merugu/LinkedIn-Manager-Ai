@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3,
@@ -57,7 +57,8 @@ type ReportData = {
 };
 
 export default function IntelligenceReportPage() {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { user, isAuthenticated, isLoading: isLoaded } = useAuth();
+  const isSignedIn = isAuthenticated;
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<ReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export default function IntelligenceReportPage() {
       const token = params.get('token');
 
       if (linkedinId && token) {
-        if (!user?.id) {
+        if (!user?.id || !isSignedIn) {
           setSyncStatus('Waiting for authentication...');
           setLoading(false);
           return;

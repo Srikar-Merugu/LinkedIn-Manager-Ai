@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import {
@@ -36,7 +36,7 @@ const tabs: Array<{ id: TabId; label: string; icon: any }> = [
 ];
 
 export default function GrowthIntelligencePage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -320,7 +320,7 @@ function ContentDNATab({ data }: { data: DashboardData | null }) {
 }
 
 function AudienceTab() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [insights, setInsights] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -435,7 +435,7 @@ function ScoreBox({ label, value, color }: { label: string; value: number; color
 }
 
 function OpportunitiesTab() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [opps, setOpps] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -488,7 +488,7 @@ function OpportunitiesTab() {
 }
 
 function CareerTab() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [career, setCareer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -554,7 +554,7 @@ function CareerTab() {
 }
 
 function ForecastsTab({ data }: { data: DashboardData | null }) {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

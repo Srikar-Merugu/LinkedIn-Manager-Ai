@@ -1,37 +1,16 @@
 const API_BASE = '/api';
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
-  if (typeof window !== 'undefined') {
-    try {
-      const clerk = (window as any).Clerk;
-      if (clerk?.user?.id) {
-        headers['x-clerk-user-id'] = clerk.user.id;
-      }
-      if (clerk?.session?.id) {
-        const token = await clerk.session.getToken();
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-      }
-    } catch {
-      // Clerk not available
-    }
-  }
-
-  return headers;
-}
-
 async function fetchAPI<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  const headers = await getAuthHeaders();
 
   const response = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
-      ...headers,
+      'Content-Type': 'application/json',
       ...options?.headers,
     },
   });

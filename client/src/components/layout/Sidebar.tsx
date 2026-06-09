@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -47,7 +47,7 @@ const secondary = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user } = useAuth();
   const initials = user?.fullName
     ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
@@ -118,7 +118,7 @@ export function Sidebar() {
             </div>
             <div className="truncate">
               <p className="text-xs font-medium text-surface-200 truncate">{user?.fullName || 'User'}</p>
-              <p className="text-[10px] text-surface-500 truncate">{user?.emailAddresses?.[0]?.emailAddress || ''}</p>
+              <p className="text-[10px] text-surface-500 truncate">{user?.email || ''}</p>
             </div>
           </div>
         </div>
