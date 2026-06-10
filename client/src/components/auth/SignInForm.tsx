@@ -9,24 +9,20 @@ import { GoogleButton } from './GoogleButton';
 import { GitHubButton } from './GitHubButton';
 import { EmailAuthForm } from './EmailAuthForm';
 import { AuthLoadingSequence } from './AuthLoadingSequence';
-
-const benefits = [
-  'Analyze LinkedIn Profile',
-  'Build Brand DNA',
-  'Create Content Strategy',
-  'Generate Content Calendar',
-  'Discover Opportunities',
-  'AI Personal Brand Manager',
-];
+import { Sparkles, Shield, CheckCircle2, Lock } from 'lucide-react';
 
 const trusts = [
-  'Enterprise Grade Security',
-  'Powered by Clerk Authentication',
-  'SOC 2 Compliant',
-  'Encrypted Data',
+  { icon: Shield,       text: 'Enterprise Grade Security' },
+  { icon: CheckCircle2, text: 'SOC 2 Ready' },
+  { icon: Lock,         text: 'Encrypted Data' },
+  { icon: Sparkles,     text: 'Powered by Clerk' },
 ];
 
-export function SignInForm() {
+interface SignInFormProps {
+  onSwitchToSignUp?: () => void;
+}
+
+export function SignInForm({ onSwitchToSignUp }: SignInFormProps) {
   const searchParams = useSearchParams();
   const { loginWithOAuth, showEmailAuth, setShowEmailAuth } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -64,17 +60,32 @@ export function SignInForm() {
           exit={{ opacity: 0, x: 20 }}
           className="space-y-5"
         >
+          {/* Header */}
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.07] bg-white/[0.03] mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
+              <span className="text-[11px] text-white/40 font-medium tracking-wide">AI-Powered Personal Branding OS</span>
+            </div>
+            <h2 className="text-[28px] font-bold text-white/95 tracking-tight">Welcome to PersonaOS</h2>
+            <p className="text-sm text-white/40 leading-relaxed">
+              Connect your professional identity to unlock your AI growth system.
+            </p>
+          </div>
+
+          {/* LinkedIn — Primary CTA */}
           <LinkedInButton
             onClick={() => handleOAuth('oauth_linkedin')}
             isLoading={isLoading === 'oauth_linkedin'}
           />
 
+          {/* Divider */}
           <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-xs text-white/30 font-medium tracking-wide">or continue with</span>
-            <div className="flex-1 h-px bg-white/[0.06]" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+            <span className="text-xs text-white/25 font-medium tracking-wider uppercase">Or continue with</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
           </div>
 
+          {/* Secondary social buttons */}
           <div className="space-y-3">
             <GoogleButton
               onClick={() => handleOAuth('oauth_google')}
@@ -86,38 +97,37 @@ export function SignInForm() {
             />
           </div>
 
-          <div className="relative">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-          </div>
-
+          {/* More options */}
           <button
+            id="more-sign-in-options-btn"
             onClick={() => setShowEmailAuth(true)}
-            className="w-full text-center text-sm text-white/30 hover:text-white/50 transition-colors py-2"
+            className="w-full text-center text-xs text-white/25 hover:text-white/45 transition-colors py-1"
           >
-            <span className="border-b border-dotted border-white/20 hover:border-white/40">
+            <span className="border-b border-dotted border-white/15 hover:border-white/35 transition-colors pb-px">
               More sign in options
             </span>
           </button>
 
-          <div className="pt-2 space-y-1.5">
-            {benefits.map((benefit) => (
-              <div key={benefit} className="flex items-center gap-2 text-white/30 text-xs">
-                <svg className="w-3.5 h-3.5 text-accent-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>{benefit}</span>
-              </div>
-            ))}
-          </div>
+          {/* Already have account */}
+          <p className="text-center text-sm text-white/35">
+            Don&apos;t have an account?{' '}
+            <button
+              id="switch-to-signup-btn"
+              onClick={onSwitchToSignUp}
+              className="relative text-brand-400 hover:text-brand-300 font-medium transition-colors group"
+            >
+              Create account
+              <span className="absolute bottom-0 left-0 w-0 h-px bg-brand-400 group-hover:w-full transition-all duration-300" />
+            </button>
+          </p>
 
-          <div className="pt-4 border-t border-white/[0.06]">
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {trusts.map((trust) => (
-                <div key={trust} className="flex items-center gap-1.5">
-                  <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <span className="text-[10px] text-white/20">{trust}</span>
+          {/* Trust Section */}
+          <div className="pt-4 border-t border-white/[0.05]">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center">
+              {trusts.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-1.5">
+                  <Icon className="w-3 h-3 text-white/20" />
+                  <span className="text-[10px] text-white/20">{text}</span>
                 </div>
               ))}
             </div>

@@ -203,7 +203,10 @@ export function EmailAuthForm({ onBack }: { onBack: () => void }) {
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/90 placeholder:text-white/20 text-sm focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06] transition-all"
+                className="w-full px-4 py-3.5 rounded-xl text-sm text-white/90 placeholder:text-white/25 focus:outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onFocus={e => { e.currentTarget.style.border = '1px solid rgba(99,102,241,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+                onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.boxShadow = 'none'; }}
                 autoFocus
               />
             </div>
@@ -214,7 +217,10 @@ export function EmailAuthForm({ onBack }: { onBack: () => void }) {
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 placeholder="Password"
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/90 placeholder:text-white/20 text-sm focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.06] transition-all"
+                className="w-full px-4 py-3.5 rounded-xl text-sm text-white/90 placeholder:text-white/25 focus:outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onFocus={e => { e.currentTarget.style.border = '1px solid rgba(99,102,241,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+                onBlur={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.boxShadow = 'none'; }}
                 onKeyDown={(e) => e.key === 'Enter' && handlePasswordLogin()}
               />
             </div>
@@ -226,8 +232,10 @@ export function EmailAuthForm({ onBack }: { onBack: () => void }) {
             <button
               onClick={handlePasswordLogin}
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white font-semibold text-sm hover:from-brand-500 hover:to-brand-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="relative w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden group"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.3)' }}
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -296,8 +304,10 @@ export function EmailAuthForm({ onBack }: { onBack: () => void }) {
             <button
               onClick={handlePasswordSignUp}
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 text-white font-semibold text-sm hover:from-brand-500 hover:to-brand-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="relative w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 overflow-hidden group"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.3)' }}
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />

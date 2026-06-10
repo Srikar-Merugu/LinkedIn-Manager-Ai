@@ -1,13 +1,7 @@
-import { Suspense } from 'react';
-import { AuthLayout } from '@/components/auth/AuthLayout';
-import { SignInForm } from '@/components/auth/SignInForm';
+import { redirect } from 'next/navigation';
 
+// The sign-in experience is now unified on /sign-up with full mode toggling.
+// Redirect legacy /sign-in links to the unified auth page.
 export default function SignInPage() {
-  return (
-    <AuthLayout>
-      <Suspense fallback={null}>
-        <SignInForm />
-      </Suspense>
-    </AuthLayout>
-  );
+  redirect('/sign-up');
 }
