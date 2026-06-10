@@ -1,0 +1,16 @@
+{
+  "name": "linkedin-ai-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:server && npm run build:client",
+    "start": "node server.js",
+    "dev": "cd server && npx tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

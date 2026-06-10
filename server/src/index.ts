@@ -35,7 +35,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 const logger = pino();
 
-async function bootstrap(): Promise<void> {
+export async function createApp(): Promise<express.Express> {
   const app = express();
 
   app.set('trust proxy', 1);
@@ -125,42 +125,22 @@ async function bootstrap(): Promise<void> {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  errorRecoverySystem.setCriticalErrorHandler(async (ctx) => {
-    logger.error({
-      operation: ctx.operation,
-      service: ctx.service,
-      error: ctx.error.message,
-    }, 'Critical error occurred - notify operations team');
-  });
+  return app;
+}
+
+async function bootstrap(): Promise<void> {
+  const app = await createApp();
 
   app.listen(env.port, () => {
     logger.info(`LinkedIn Intelligence Engine running on port ${env.port}`);
     logger.info(`Environment: ${env.nodeEnv}`);
     logger.info(`Health check: http://localhost:${env.port}/api/health`);
   });
-
-  const shutdown = async () => {
-    logger.info('Shutting down gracefully...');
-    try {
-      await backgroundJobs.shutdown();
-    } catch (err) {
-      logger.warn({ err }, 'Background job shutdown error');
-    }
-    if (redisClient) {
-      try {
-        await redisClient.quit();
-      } catch (err) {
-        logger.warn({ err }, 'Redis shutdown error');
-      }
-    }
-    process.exit(0);
-  };
-
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
 }
 
-bootstrap().catch((error) => {
-  logger.error({ error }, 'Failed to start server');
-  process.exit(1);
-});
+if (require.main === module) {
+  bootstrap().catch((error) => {
+    logger.error({ error }, 'Failed to start server');
+    process.exit(1);
+  });
+}

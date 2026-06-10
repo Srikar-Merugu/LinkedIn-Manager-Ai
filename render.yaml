@@ -1,10 +1,9 @@
 services:
   - type: web
-    name: linkedin-ai-manager-api
+    name: linkedin-ai-manager
     env: node
-    rootDir: server
-    buildCommand: npm install && npm run build
-    startCommand: node dist/index.js
+    buildCommand: cd server && npm install && npm run build && cd ../client && npm install && npm run build
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,15 +13,7 @@ services:
         generateValue: true
       - key: CLIENT_URL
         sync: false
-
-  - type: web
-    name: linkedin-ai-manager
-    env: node
-    rootDir: client
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
       - key: NEXT_PUBLIC_API_URL
-        sync: false
+        value: /
+      - key: PORT
+        value: 10000
