@@ -139,9 +139,17 @@ async function bootstrap(): Promise<void> {
 
   const shutdown = async () => {
     logger.info('Shutting down gracefully...');
-    await backgroundJobs.shutdown();
+    try {
+      await backgroundJobs.shutdown();
+    } catch (err) {
+      logger.warn({ err }, 'Background job shutdown error');
+    }
     if (redisClient) {
-      await redisClient.quit();
+      try {
+        await redisClient.quit();
+      } catch (err) {
+        logger.warn({ err }, 'Redis shutdown error');
+      }
     }
     process.exit(0);
   };
