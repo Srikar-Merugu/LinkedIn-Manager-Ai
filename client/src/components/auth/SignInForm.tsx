@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, EyeOff, Loader2, AlertCircle,
-  Mail, Lock, Sparkles
+  Mail, Lock, Sparkles, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SignInFormProps {
   onSwitchToSignUp?: () => void;
+  showCreated?: boolean;
 }
 
-export function SignInForm({ onSwitchToSignUp }: SignInFormProps) {
+export function SignInForm({ onSwitchToSignUp, showCreated }: SignInFormProps) {
   const { loginWithEmailPassword } = useAuth();
   const router = useRouter();
 
@@ -66,6 +67,17 @@ export function SignInForm({ onSwitchToSignUp }: SignInFormProps) {
           Sign in to continue building your AI-powered personal brand.
         </p>
       </div>
+
+      {showCreated && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400"
+        >
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          Account created successfully! Please sign in to continue.
+        </motion.div>
+      )}
 
       <div className="space-y-3.5">
         <div>

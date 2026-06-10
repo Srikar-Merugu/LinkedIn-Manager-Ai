@@ -8,6 +8,7 @@ import { SignInForm } from '@/components/auth/SignInForm';
 
 function AuthContent() {
   const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  const [showCreated, setShowCreated] = useState(false);
 
   return (
     <AuthLayout mode={mode}>
@@ -20,7 +21,7 @@ function AuthContent() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SignUpForm onSwitchToSignIn={() => setMode('signin')} />
+            <SignUpForm onSwitchToSignIn={() => { setShowCreated(true); setMode('signin'); }} />
           </motion.div>
         ) : (
           <motion.div
@@ -30,7 +31,7 @@ function AuthContent() {
             exit={{ opacity: 0, x: 24 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SignInForm onSwitchToSignUp={() => setMode('signup')} />
+            <SignInForm onSwitchToSignUp={() => setMode('signup')} showCreated={showCreated} />
           </motion.div>
         )}
       </AnimatePresence>
