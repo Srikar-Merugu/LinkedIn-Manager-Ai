@@ -5,7 +5,6 @@ import { LoginHistory } from '../../models/auth/LoginHistory';
 import { SecurityLog } from '../../models/auth/SecurityLog';
 import { ConnectedAccount } from '../../models/auth/ConnectedAccount';
 import { UserPreferences } from '../../models/auth/UserPreferences';
-import type { WebhookEvent } from '@clerk/backend';
 
 const logger = pino();
 
