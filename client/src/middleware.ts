@@ -1,42 +1,75 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
+const publicRoutes = [
   '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/sso-callback(.*)',
-  '/api(.*)',
-]);
+  '/sign-in',
+  '/sign-up',
+  '/api',
+];
 
-const isOnboardingRoute = createRouteMatcher([
-  '/onboarding(.*)',
-]);
+const isPublicRoute = (pathname: string): boolean => {
+  return publicRoutes.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+};
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isPublicRoute(req)) return;
+export default async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
 
-  const { userId, redirectToSignIn } = await auth();
-
-  if (!userId) {
-    return redirectToSignIn({ returnBackUrl: req.url });
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  if (isOnboardingRoute(req)) return;
+  const sessionCookie = req.cookies.get('session')?.value;
+
+  if (!sessionCookie) {
+    const signInUrl = new URL('/sign-up', req.url);
+    signInUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  const onboardingMatch = pathname.startsWith('/onboarding');
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/onboarding/state`, {
-      headers: { 'x-clerk-user-id': userId },
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/me`, {
+      headers: { Cookie: `session=${sessionCookie}` },
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.state?.status !== 'completed' && data.state?.currentStep) {
-        return Response.redirect(new URL('/onboarding', req.url));
+
+    if (!res.ok) {
+      const signInUrl = new URL('/sign-up', req.url);
+      signInUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    if (onboardingMatch) {
+      return NextResponse.next();
+    }
+
+    const data = await res.json();
+    if (data.user) {
+      try {
+        const stateRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/onboarding/state`, {
+          headers: { Cookie: `session=${sessionCookie}` },
+        });
+        if (stateRes.ok) {
+          const stateData = await stateRes.json();
+          if (stateData.state?.status !== 'completed' && stateData.state?.currentStep) {
+            return NextResponse.redirect(new URL('/onboarding', req.url));
+          }
+        }
+      } catch {
+        // Allow through if onboarding state check fails
       }
     }
+
+    return NextResponse.next();
   } catch {
-    // Allow through if onboarding state check fails
+    const signInUrl = new URL('/sign-up', req.url);
+    signInUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(signInUrl);
   }
-});
+}
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],

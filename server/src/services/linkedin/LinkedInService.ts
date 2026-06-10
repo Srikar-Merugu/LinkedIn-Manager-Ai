@@ -60,9 +60,9 @@ export class LinkedInService {
     const actualState = state || crypto.randomBytes(16).toString('hex');
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: env.linkedin.clientId,
-      redirect_uri: env.linkedin.redirectUri,
-      scope: env.linkedin.scopes.join(' '),
+      client_id: process.env.LINKEDIN_CLIENT_ID || '',
+      redirect_uri: process.env.LINKEDIN_REDIRECT_URI || '',
+      scope: (process.env.LINKEDIN_SCOPES || 'openid profile email w_member_social').split(' ').join(' '),
       state: actualState,
     });
 
@@ -77,9 +77,9 @@ export class LinkedInService {
           new URLSearchParams({
             grant_type: 'authorization_code',
             code,
-            client_id: env.linkedin.clientId,
-            client_secret: env.linkedin.clientSecret,
-            redirect_uri: env.linkedin.redirectUri,
+            client_id: process.env.LINKEDIN_CLIENT_ID || '',
+            client_secret: process.env.LINKEDIN_CLIENT_SECRET || '',
+            redirect_uri: process.env.LINKEDIN_REDIRECT_URI || '',
           }).toString(),
           {
             headers: {
@@ -108,8 +108,8 @@ export class LinkedInService {
           new URLSearchParams({
             grant_type: 'refresh_token',
             refresh_token: refreshToken,
-            client_id: env.linkedin.clientId,
-            client_secret: env.linkedin.clientSecret,
+            client_id: process.env.LINKEDIN_CLIENT_ID || '',
+            client_secret: process.env.LINKEDIN_CLIENT_SECRET || '',
           }).toString(),
           {
             headers: {
@@ -293,8 +293,8 @@ export class LinkedInService {
     try {
       await axios.delete(`${this.authUrl}/accessToken`, {
         params: {
-          client_id: env.linkedin.clientId,
-          client_secret: env.linkedin.clientSecret,
+          client_id: process.env.LINKEDIN_CLIENT_ID || '',
+          client_secret: process.env.LINKEDIN_CLIENT_SECRET || '',
           token: accessToken,
         },
       });

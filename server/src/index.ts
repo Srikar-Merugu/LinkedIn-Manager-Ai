@@ -16,7 +16,6 @@ import { ScoringEngine } from './services/analysis/ScoringEngine';
 import { ProfileAnalysisEngine } from './services/analysis/ProfileAnalysisEngine';
 import { RecommendationEngine } from './services/analysis/RecommendationEngine';
 import { createAuthRouter } from './routes/auth';
-import { createWebhookRouter } from './routes/webhooks';
 import { createProfileRouter } from './routes/profile';
 import { createAnalysisRouter } from './routes/analysis';
 import { createOnboardingRouter } from './routes/onboarding';
@@ -31,7 +30,7 @@ import { createOpportunityRouter } from './routes/opportunity';
 import { createContentGenerationRouter } from './routes/content-generation';
 import { createAIManagerRouter } from './routes/ai-manager';
 import { createAnalyticsRouter } from './routes/analytics';
-import { apiLimiter, authLimiter, syncLimiter } from './middleware/rateLimiter';
+import { apiLimiter, authLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 const logger = pino();
@@ -82,8 +81,7 @@ async function bootstrap(): Promise<void> {
   const analysisEngine = new ProfileAnalysisEngine(scoringEngine);
   const recommendationEngine = new RecommendationEngine();
 
-  app.use('/api/auth', authLimiter, createAuthRouter(linkedinService));
-  app.use('/api/webhooks', createWebhookRouter());
+  app.use('/api/auth', authLimiter, createAuthRouter());
   app.use('/api/profile', createProfileRouter(linkedinService, syncService, cachingLayer));
   app.use(
     '/api/analysis',

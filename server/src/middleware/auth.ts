@@ -12,8 +12,7 @@ export function authenticateToken(
   res: Response,
   next: NextFunction
 ): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = extractToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Authentication required' });
@@ -26,7 +25,7 @@ export function authenticateToken(
     req.userEmail = decoded.email;
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: 'Invalid or expired session' });
   }
 }
 
@@ -35,17 +34,28 @@ export function optionalAuth(
   _res: Response,
   next: NextFunction
 ): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = extractToken(req);
 
   if (token) {
     try {
-      const decoded = jwt.verify(token, env.jwtSecret) as { userId: string };
+      const decoded = jwt.verify(token, env.jwtSecret) as { userId: string; email?: string };
       req.userId = decoded.userId;
+      req.userEmail = decoded.email;
     } catch {
       // Token invalid, continue without auth
     }
   }
 
   next();
+}
+
+function extractToken(req: Request): string | null {
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+  if (req.cookies?.session) {
+    return req.cookies.session;
+  }
+  return null;
 }

@@ -11,31 +11,6 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   jwtExpiry: process.env.JWT_EXPIRY || '7d',
 
-  linkedin: {
-    clientId: process.env.LINKEDIN_CLIENT_ID || '',
-    clientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
-    redirectUri: process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:4000/api/auth/linkedin/callback',
-    scopes: ['openid', 'profile', 'email', 'w_member_social'],
-  },
-
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID || '',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/auth/google/callback',
-  },
-
-  github: {
-    clientId: process.env.GITHUB_CLIENT_ID || '',
-    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:4000/api/auth/github/callback',
-  },
-
-  clerk: {
-    secretKey: process.env.CLERK_SECRET_KEY || '',
-    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '',
-    webhookSecret: process.env.CLERK_WEBHOOK_SECRET || '',
-  },
-
   encryptionKey: process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars!!',
 
   cacheTtl: parseInt(process.env.CACHE_TTL || '300', 10),

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, EyeOff, Loader2, CheckCircle2, AlertCircle,
@@ -37,14 +38,6 @@ function FloatingInput({
     ? 'border-brand-500/60'
     : 'border-white/[0.08]';
 
-  const glowColor = error
-    ? 'shadow-red-500/10'
-    : success
-    ? 'shadow-emerald-500/10'
-    : focused
-    ? 'shadow-brand-500/10'
-    : '';
-
   return (
     <div className="space-y-1.5">
       <div
@@ -54,7 +47,6 @@ function FloatingInput({
           boxShadow: focused ? `0 0 0 3px ${error ? 'rgba(239,68,68,0.08)' : 'rgba(99,102,241,0.12)'}` : 'none',
         }}
       >
-        {/* Floating Label */}
         <label
           htmlFor={id}
           className={`absolute left-11 transition-all duration-200 pointer-events-none font-medium ${
@@ -66,12 +58,10 @@ function FloatingInput({
           {label}
         </label>
 
-        {/* Leading Icon */}
         <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
           <Icon className={`w-4 h-4 transition-colors duration-200 ${focused ? 'text-brand-400' : 'text-white/20'}`} />
         </div>
 
-        {/* Input */}
         <input
           id={id}
           type={type}
@@ -84,7 +74,6 @@ function FloatingInput({
           className="w-full bg-transparent pt-6 pb-2 pl-11 pr-10 text-sm text-white/90 outline-none rounded-xl"
         />
 
-        {/* Trailing (show/hide or validation) */}
         {suffix && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
             {suffix}
@@ -92,7 +81,6 @@ function FloatingInput({
         )}
       </div>
 
-      {/* Error message */}
       <AnimatePresence>
         {error && (
           <motion.p
@@ -157,6 +145,7 @@ interface SignUpFormProps {
 
 export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
   const { signUpWithEmailPassword } = useAuth();
+  const router = useRouter();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -170,8 +159,8 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
 
   const validate = useCallback(() => {
     const e: Record<string, string> = {};
-    if (!fullName.trim()) e.fullName = 'Full name is required';
-    if (!email.trim() || !email.includes('@')) e.email = 'Enter a valid email address';
+    if (!fullName.trim() || fullName.trim().length < 2) e.fullName = 'Name must be at least 2 characters';
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email address';
     if (!password || password.length < 8) e.password = 'Password must be at least 8 characters';
     if (password !== confirmPassword) e.confirmPassword = 'Passwords do not match';
     return e;
@@ -185,12 +174,9 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
     try {
       await signUpWithEmailPassword(email, password, fullName);
       setSuccess(true);
+      setTimeout(() => router.push('/onboarding'), 1500);
     } catch (err: any) {
-      if (err.message === 'VERIFY_EMAIL') {
-        setSuccess(true);
-      } else {
-        setErrors({ submit: err.message || err.errors?.[0]?.message || 'Failed to create account' });
-      }
+      setErrors({ submit: err.message || 'Failed to create account' });
     } finally {
       setLoading(false);
     }
@@ -208,7 +194,7 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         </div>
         <div>
           <h3 className="text-xl font-bold text-white/90">Account created!</h3>
-          <p className="text-sm text-white/40 mt-1">Check your inbox to verify your email and unlock PersonaOS.</p>
+          <p className="text-sm text-white/40 mt-1">Redirecting to your dashboard...</p>
         </div>
         <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
           <motion.div
@@ -231,9 +217,7 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
       transition={{ duration: 0.35 }}
       className="space-y-5"
     >
-      {/* Header */}
       <div className="space-y-2">
-        {/* Badge */}
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/[0.07] bg-white/[0.03] mb-3">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
           <span className="text-[11px] text-white/40 font-medium tracking-wide">AI-Powered Personal Branding OS</span>
@@ -246,7 +230,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         </p>
       </div>
 
-      {/* Form Fields */}
       <div className="space-y-3.5">
         <FloatingInput
           id="signup-name"
@@ -309,7 +292,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         />
       </div>
 
-      {/* Submit error */}
       <AnimatePresence>
         {errors.submit && (
           <motion.div
@@ -324,7 +306,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         )}
       </AnimatePresence>
 
-      {/* Create Account Button */}
       <button
         id="create-account-btn"
         onClick={handleSubmit}
@@ -337,7 +318,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 32px rgba(99,102,241,0.55)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(99,102,241,0.35)'; }}
       >
-        {/* Shimmer */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
         <span className="relative flex items-center justify-center gap-2">
           {loading ? (
@@ -348,7 +328,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         </span>
       </button>
 
-      {/* Sign In Link */}
       <p className="text-center text-sm text-white/35">
         Already have an account?{' '}
         <button
