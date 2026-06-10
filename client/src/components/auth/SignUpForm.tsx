@@ -186,7 +186,11 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
       await signUpWithEmailPassword(email, password, fullName);
       setSuccess(true);
     } catch (err: any) {
-      setErrors({ submit: err.message || err.errors?.[0]?.message || 'Failed to create account' });
+      if (err.message === 'VERIFY_EMAIL') {
+        setSuccess(true);
+      } else {
+        setErrors({ submit: err.message || err.errors?.[0]?.message || 'Failed to create account' });
+      }
     } finally {
       setLoading(false);
     }

@@ -81,6 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmailPassword = useCallback(async (email: string, password: string, fullName: string) => {
     if (!signUp) throw new Error('Sign up not initialized');
+
+    // If Clerk detects an active session (stale cookies, keyless mode, etc.),
+    // clear it first to prevent signUp.create() from throwing "already signed in".
+    if (isSignedIn) {
+      await signOut();
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    if (!signUp) throw new Error('Sign up not initialized');
+
     const result = await signUp.create({
       emailAddress: email,
       password,
@@ -89,12 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (result.status === 'complete') {
       await (signUp as any).setActive?.({ session: result.createdSessionId });
-      router.push('/sign-in?success=true');
+      router.push('/onboarding');
     } else if (result.status === 'missing_requirements') {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       throw new Error('VERIFY_EMAIL');
     }
-  }, [signUp, router]);
+  }, [signUp, router, isSignedIn, signOut]);
 
   const loginWithEmailOTP = useCallback(async (email: string) => {
     if (!signIn) throw new Error('Sign in not initialized');

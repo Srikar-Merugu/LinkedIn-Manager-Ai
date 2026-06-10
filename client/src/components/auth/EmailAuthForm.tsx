@@ -63,7 +63,11 @@ export function EmailAuthForm({ onBack }: { onBack: () => void }) {
       await signUpWithEmailPassword(email, password, fullName);
       setMode('success');
     } catch (err: any) {
-      setError(err.message || err.errors?.[0]?.message || 'Failed to create account');
+      if (err.message === 'VERIFY_EMAIL') {
+        setMode('success');
+      } else {
+        setError(err.message || err.errors?.[0]?.message || 'Failed to create account');
+      }
     } finally {
       setLoading(false);
     }
