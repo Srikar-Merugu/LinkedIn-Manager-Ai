@@ -50,19 +50,8 @@ export function createAuthRouter(): Router {
         lastActiveAt: new Date(),
       });
 
-      const token = authService.generateToken(user._id.toString(), user.email);
-
-      res.cookie('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
       res.status(201).json({
-        user: authService.sanitizeUser(user),
-        message: 'Account created successfully',
+        message: 'Account created successfully. Please sign in.',
       });
     } catch (error: any) {
       logger.error({ error: error.message }, 'Signup failed');

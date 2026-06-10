@@ -174,7 +174,6 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
     try {
       await signUpWithEmailPassword(email, password, fullName);
       setSuccess(true);
-      setTimeout(() => router.push('/onboarding'), 1500);
     } catch (err: any) {
       setErrors({ submit: err.message || 'Failed to create account' });
     } finally {
@@ -194,16 +193,23 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
         </div>
         <div>
           <h3 className="text-xl font-bold text-white/90">Account created!</h3>
-          <p className="text-sm text-white/40 mt-1">Redirecting to your dashboard...</p>
+          <p className="text-sm text-white/40 mt-1">Your account has been created. Please sign in to continue.</p>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-          <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500"
-            initial={{ width: '0%' }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 2 }}
-          />
-        </div>
+        <button
+          onClick={onSwitchToSignIn}
+          className="relative w-full group overflow-hidden rounded-xl py-3.5 font-semibold text-sm text-white transition-all duration-300"
+          style={{
+            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            boxShadow: '0 4px 24px rgba(99,102,241,0.35)',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 32px rgba(99,102,241,0.55)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(99,102,241,0.35)'; }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+          <span className="relative flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4" />Sign In
+          </span>
+        </button>
       </motion.div>
     );
   }

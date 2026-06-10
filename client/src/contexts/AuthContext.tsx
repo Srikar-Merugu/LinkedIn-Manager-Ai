@@ -71,10 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) {
       throw new Error(data.error || 'Failed to create account');
     }
-
-    if (data.user) {
-      setUser({ ...data.user, id: data.user._id });
-    }
   }, []);
 
   const loginWithEmailPassword = useCallback(async (email: string, password: string) => {
