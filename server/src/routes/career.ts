@@ -15,11 +15,12 @@ import { OpportunityForecast } from '../models/career/OpportunityForecast';
 import { AuthorityMap } from '../models/career/AuthorityMap';
 import { NetworkingRecommendation } from '../models/career/NetworkingRecommendation';
 import { CareerMilestone } from '../models/career/CareerMilestone';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createCareerRouter(): Router {
@@ -29,8 +30,8 @@ export function createCareerRouter(): Router {
 
   router.post('/full-report', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, profileData } = req.body;
       if (!userId || !profileData) return res.status(400).json({ error: 'userId and profileData required' });
@@ -47,8 +48,8 @@ export function createCareerRouter(): Router {
 
   router.get('/goals', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const userId = req.query.userId as string;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -67,8 +68,8 @@ export function createCareerRouter(): Router {
 
   router.put('/goals', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, updates } = req.body;
       if (!userId || !updates) return res.status(400).json({ error: 'userId and updates required' });
@@ -104,8 +105,8 @@ export function createCareerRouter(): Router {
 
   router.post('/goals/suggest', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { profileData } = req.body;
       if (!profileData) return res.status(400).json({ error: 'profileData required' });
@@ -121,8 +122,8 @@ export function createCareerRouter(): Router {
 
   router.post('/stage', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { profileData } = req.body;
       if (!profileData) return res.status(400).json({ error: 'profileData required' });
@@ -138,8 +139,8 @@ export function createCareerRouter(): Router {
 
   router.post('/opportunity-map', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { profileData, targetRole } = req.body;
       if (!profileData) return res.status(400).json({ error: 'profileData required' });
@@ -155,8 +156,8 @@ export function createCareerRouter(): Router {
 
   router.post('/skill-gaps', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { profileData } = req.body;
       if (!profileData) return res.status(400).json({ error: 'profileData required' });
@@ -172,8 +173,8 @@ export function createCareerRouter(): Router {
 
   router.post('/content-map', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { goal } = req.body;
       if (!goal) return res.status(400).json({ error: 'goal required' });
@@ -300,8 +301,8 @@ export function createCareerRouter(): Router {
 
   router.post('/milestones', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, ...milestoneData } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });

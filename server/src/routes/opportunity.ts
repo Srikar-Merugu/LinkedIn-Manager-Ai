@@ -14,11 +14,12 @@ import { linkedInChangeDetectionEngine } from '../services/opportunity/engines/L
 import { portfolioIntelligenceEngine } from '../services/opportunity/engines/PortfolioIntelligenceEngine';
 import { resumeChangeDetectionEngine } from '../services/opportunity/engines/ResumeChangeDetectionEngine';
 import { projectOpportunityEngine } from '../services/opportunity/engines/ProjectOpportunityEngine';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createOpportunityRouter(): Router {
@@ -28,8 +29,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/mine', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, sourceData } = req.body;
       if (!userId || !sourceData) return res.status(400).json({ error: 'userId and sourceData required' });
@@ -46,8 +47,8 @@ export function createOpportunityRouter(): Router {
 
   router.get('/signals/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { status, source, limit } = req.query;
@@ -67,8 +68,8 @@ export function createOpportunityRouter(): Router {
 
   router.put('/signals/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const signal = await OpportunitySignal.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -83,8 +84,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/detect', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, sourceData } = req.body;
       if (!userId || !sourceData) return res.status(400).json({ error: 'userId and sourceData required' });
@@ -109,8 +110,8 @@ export function createOpportunityRouter(): Router {
 
   router.get('/opportunities/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { status, priority, limit } = req.query;
@@ -130,8 +131,8 @@ export function createOpportunityRouter(): Router {
 
   router.put('/opportunities/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const opp = await ContentOpportunity.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -146,8 +147,8 @@ export function createOpportunityRouter(): Router {
 
   router.get('/recommendations/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { status, limit } = req.query;
@@ -166,8 +167,8 @@ export function createOpportunityRouter(): Router {
 
   router.put('/recommendations/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const rec = await OpportunityRecommendation.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -182,8 +183,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/github', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { data } = req.body;
       const milestones = gitHubIntelligenceEngine.detectMilestones(data || {});
@@ -196,8 +197,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/linkedin', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { current, previous } = req.body;
       const changes = linkedInChangeDetectionEngine.detectChanges(current, previous);
@@ -209,8 +210,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/portfolio', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { current, previous } = req.body;
       const changes = portfolioIntelligenceEngine.detectNewEntries(current, previous);
@@ -222,8 +223,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/resume', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { current, previous } = req.body;
       const changes = resumeChangeDetectionEngine.detectChanges(current, previous);
@@ -235,8 +236,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/project', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { project } = req.body;
       const result = projectOpportunityEngine.analyze(project);
@@ -248,8 +249,8 @@ export function createOpportunityRouter(): Router {
 
   router.post('/analyze/angles', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { request } = req.body;
       const angles = contentAngleEngine.generate(request);
@@ -263,8 +264,8 @@ export function createOpportunityRouter(): Router {
 
   router.get('/status/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);

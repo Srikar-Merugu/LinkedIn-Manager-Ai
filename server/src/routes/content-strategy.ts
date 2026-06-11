@@ -11,11 +11,12 @@ import { AuthorityRoadmap } from '../models/content-strategy/AuthorityRoadmap';
 import { NetworkingPlan } from '../models/content-strategy/NetworkingPlan';
 import { OpportunityPlan } from '../models/content-strategy/OpportunityPlan';
 import { regenerationEngine } from '../services/content-strategy/engines/RegenerationEngine';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createContentStrategyRouter(): Router {
@@ -25,8 +26,8 @@ export function createContentStrategyRouter(): Router {
 
   router.post('/full-report', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, profileData } = req.body;
       if (!userId || !profileData) return res.status(400).json({ error: 'userId and profileData required' });
@@ -43,8 +44,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const strategy = await ContentStrategyIntelligence.findOne({
@@ -63,8 +64,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/months', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const months = await MonthlyStrategy.find({
@@ -81,8 +82,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/themes', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const month = req.query.month ? parseInt(req.query.month as string) : undefined;
@@ -100,8 +101,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/goals', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const goals = await GrowthGoal.find({
@@ -117,8 +118,8 @@ export function createContentStrategyRouter(): Router {
 
   router.put('/goals/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const goal = await GrowthGoal.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -133,8 +134,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/authority', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const roadmap = await AuthorityRoadmap.findOne({
@@ -152,8 +153,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/networking', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const plan = await NetworkingPlan.findOne({
@@ -171,8 +172,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/opportunities', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const plan = await OpportunityPlan.findOne({
@@ -190,8 +191,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/scores', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const score = await StrategyScore.findOne({
@@ -209,8 +210,8 @@ export function createContentStrategyRouter(): Router {
 
   router.post('/regenerate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, signals, profileData } = req.body;
       if (!userId || !signals) return res.status(400).json({ error: 'userId and signals required' });
@@ -232,8 +233,8 @@ export function createContentStrategyRouter(): Router {
 
   router.get('/:userId/status', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);

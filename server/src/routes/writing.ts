@@ -7,11 +7,12 @@ import { continuousLearningService } from '../services/writing/engines/Continuou
 import { WritingDNA } from '../models/writing/WritingDNA';
 import { WritingSnapshot } from '../models/writing/WritingSnapshot';
 import { VoiceScore } from '../models/writing/VoiceScore';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createWritingRouter(): Router {
@@ -21,8 +22,8 @@ export function createWritingRouter(): Router {
 
   router.post('/generate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, texts, profileId } = req.body;
       if (!userId || !texts) return res.status(400).json({ error: 'userId and texts required' });
@@ -43,8 +44,8 @@ export function createWritingRouter(): Router {
 
   router.get('/dna', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const userId = req.query.userId as string;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -64,8 +65,8 @@ export function createWritingRouter(): Router {
 
   router.put('/dna', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, updates } = req.body;
       if (!userId || !updates) return res.status(400).json({ error: 'userId and updates required' });
@@ -146,8 +147,8 @@ export function createWritingRouter(): Router {
 
   router.post('/learn', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, texts, trigger } = req.body;
       if (!userId || !texts) return res.status(400).json({ error: 'userId and texts required' });
@@ -170,8 +171,8 @@ export function createWritingRouter(): Router {
 
   router.post('/score', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, content, contentId } = req.body;
       if (!userId || !content) return res.status(400).json({ error: 'userId and content required' });

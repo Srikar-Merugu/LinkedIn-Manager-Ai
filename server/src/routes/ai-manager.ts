@@ -10,11 +10,13 @@ import { ConversationHistory } from '../models/ai-manager/ConversationHistory';
 import { AIRecommendation } from '../models/ai-manager/AIRecommendation';
 import { AIAction } from '../models/ai-manager/AIAction';
 import { UserPreference } from '../models/ai-manager/UserPreference';
+import { userContextService } from '../services/UserContextService';
+import { getAuthenticatedUserId } from '../utils/auth';
 
-const logger = pino();
+const logger = pino({ name: 'ai-manager-route' });
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createAIManagerRouter(): Router {
@@ -24,17 +26,45 @@ export function createAIManagerRouter(): Router {
 
   router.post('/chat', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, sessionId, message } = req.body;
       if (!userId || !message) return res.status(400).json({ error: 'userId and message required' });
 
+      // Verify the authenticated user matches the requested userId
+      if (authUserId !== userId) {
+        return res.status(403).json({ error: 'You can only chat as yourself' });
+      }
+
+      // Load user context for personalized responses
+      const context = await userContextService.getContext(userId);
+
+      if (!context.report) {
+        return res.status(400).json({
+          error: 'Analysis report required',
+          details: 'Please complete onboarding first to generate your analysis report. The AI assistant needs your brand DNA, writing DNA, and career blueprint to provide personalized responses.',
+          action: 'complete_onboarding',
+        });
+      }
+
       const response = await orchestratorAgent.processChat({ userId, sessionId, message });
       res.json(response);
     } catch (error: any) {
-      logger.error({ error }, 'Chat processing failed');
-      res.status(500).json({ error: error.message || 'Chat processing failed' });
+      logger.error({ error: error.message, userId: req.body?.userId }, 'Chat processing failed');
+
+      if (error.message?.includes('OpenAI') || error.message?.includes('API key')) {
+        return res.status(503).json({
+          error: 'AI service temporarily unavailable',
+          details: 'The AI assistant is currently unavailable. Please try again in a few minutes.',
+          action: 'retry_later',
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to process your message',
+        details: error.message || 'An unexpected error occurred. Please try again.',
+      });
     }
   });
 
@@ -42,8 +72,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/sessions/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const sessions = await ChatSession.find({ userId: new mongoose.Types.ObjectId(userId), status: 'active' })
@@ -56,8 +86,8 @@ export function createAIManagerRouter(): Router {
 
   router.post('/sessions', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -76,8 +106,8 @@ export function createAIManagerRouter(): Router {
 
   router.put('/sessions/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const session = await ChatSession.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -92,8 +122,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/history/:sessionId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { sessionId } = req.params;
       const { limit } = req.query;
@@ -110,8 +140,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/recommendations/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { category, status, limit } = req.query;
@@ -132,8 +162,8 @@ export function createAIManagerRouter(): Router {
 
   router.put('/recommendations/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const rec = await AIRecommendation.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -148,8 +178,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/proactive/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const recommendations = await orchestratorAgent.getProactiveRecommendations(userId);
@@ -163,8 +193,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/actions/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { status, limit } = req.query;
@@ -183,8 +213,8 @@ export function createAIManagerRouter(): Router {
 
   router.post('/actions/:id/execute', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const { approvedBy } = req.body;
@@ -197,8 +227,8 @@ export function createAIManagerRouter(): Router {
 
   router.post('/actions/:id/approve', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const { userId } = req.body;
@@ -211,8 +241,8 @@ export function createAIManagerRouter(): Router {
 
   router.post('/actions/:id/reject', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const { reason } = req.body;
@@ -227,8 +257,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/preferences/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       let prefs: any = await UserPreference.findOne({ userId: new mongoose.Types.ObjectId(userId) }).lean();
@@ -243,8 +273,8 @@ export function createAIManagerRouter(): Router {
 
   router.put('/preferences/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const prefs = await UserPreference.findOneAndUpdate(
@@ -262,11 +292,11 @@ export function createAIManagerRouter(): Router {
 
   router.get('/context/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
-      const context = await contextEngine.load(userId);
+      const context = await userContextService.getContext(userId);
       res.json(context);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -277,8 +307,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/tasks/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const tasks = await orchestratorAgent.generateSuggestedTasks(userId);
@@ -292,8 +322,8 @@ export function createAIManagerRouter(): Router {
 
   router.get('/status/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);

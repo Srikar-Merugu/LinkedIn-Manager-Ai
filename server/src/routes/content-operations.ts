@@ -7,11 +7,12 @@ import { QueueItem } from '../models/content-operations/QueueItem';
 import { PublishingMode } from '../models/content-operations/PublishingMode';
 import { CalendarSnapshot } from '../models/content-operations/CalendarSnapshot';
 import { automationModeEngine } from '../services/content-operations/engines/AutomationModeEngine';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createContentOperationsRouter(): Router {
@@ -21,8 +22,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/full-report', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, strategyData } = req.body;
       if (!userId || !strategyData) return res.status(400).json({ error: 'userId and strategyData required' });
@@ -39,8 +40,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/calendar/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { startDate, endDate, status, pillar, limit } = req.query;
@@ -66,8 +67,8 @@ export function createContentOperationsRouter(): Router {
 
   router.put('/calendar/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const entry = await ContentCalendar.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -80,8 +81,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/calendar/batch', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { updates } = req.body;
       if (!Array.isArray(updates)) return res.status(400).json({ error: 'updates array required' });
@@ -101,8 +102,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/queue/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { stage, limit } = req.query;
@@ -122,8 +123,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/queue/:id/advance', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const result = await contentOperatingSystemOrchestrator.advanceQueueItem(id, 'user');
@@ -135,8 +136,8 @@ export function createContentOperationsRouter(): Router {
 
   router.put('/queue/:id', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
       const item = await QueueItem.findByIdAndUpdate(id, { $set: req.body }, { new: true });
@@ -151,8 +152,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/draft/generate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { calendarEntryId, profileData } = req.body;
       if (!calendarEntryId) return res.status(400).json({ error: 'calendarEntryId required' });
@@ -168,8 +169,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/mode/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const mode = await automationModeEngine.getMode(new mongoose.Types.ObjectId(userId));
@@ -181,8 +182,8 @@ export function createContentOperationsRouter(): Router {
 
   router.put('/mode/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { mode, reason } = req.body;
@@ -195,8 +196,8 @@ export function createContentOperationsRouter(): Router {
 
   router.put('/mode/:userId/config', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const config = await automationModeEngine.updateConfig(new mongoose.Types.ObjectId(userId), req.body);
@@ -210,8 +211,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/sync/sheets/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const result = await contentOperatingSystemOrchestrator.syncToSheets(userId);
@@ -225,8 +226,8 @@ export function createContentOperationsRouter(): Router {
 
   router.post('/opportunity/process', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, signals } = req.body;
       if (!userId || !signals) return res.status(400).json({ error: 'userId and signals required' });
@@ -242,8 +243,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/analytics/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const feedback = await contentOperatingSystemOrchestrator.getAnalyticsFeedback(userId);
@@ -257,8 +258,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/snapshots/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
@@ -276,8 +277,8 @@ export function createContentOperationsRouter(): Router {
 
   router.get('/status/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);

@@ -9,11 +9,12 @@ import { ProfileScore } from '../models/intelligence/ProfileScore';
 import { OpportunityEvent } from '../models/intelligence/OpportunityEvent';
 import { ExpertiseProfile } from '../models/intelligence/ExpertiseProfile';
 import { LinkedInProfile } from '../models/LinkedInProfile';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createIntelligenceRouter(): Router {
@@ -22,8 +23,8 @@ export function createIntelligenceRouter(): Router {
   router.get('/report/:profileId', async (req: Request, res: Response) => {
     try {
       const { profileId } = req.params;
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const profile = await LinkedInProfile.findById(profileId).select('userId linkedinId');
       if (!profile) return res.status(404).json({ error: 'Profile not found' });
@@ -160,8 +161,8 @@ export function createIntelligenceRouter(): Router {
   router.post('/snapshot/:profileId', async (req: Request, res: Response) => {
     try {
       const { profileId } = req.params;
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const profile = await LinkedInProfile.findById(profileId).select('userId');
       if (!profile) return res.status(404).json({ error: 'Profile not found' });

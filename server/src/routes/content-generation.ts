@@ -18,11 +18,12 @@ import { careerAlignmentEngine, CareerAlignmentInput } from '../services/content
 import { contentQualityEngine } from '../services/content-generation/engines/ContentQualityEngine';
 import { linkedInOptimizationEngine } from '../services/content-generation/engines/LinkedInOptimizationEngine';
 import { contentScoringEngine } from '../services/content-generation/engines/ContentScoringEngine';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createContentGenerationRouter(): Router {
@@ -32,8 +33,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/generate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const input: GenerateInput = req.body;
       if (!input.userId || !input.topic || !input.contentType) {
@@ -52,8 +53,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/regenerate/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const params = req.body;
@@ -90,8 +91,8 @@ export function createContentGenerationRouter(): Router {
 
   router.get('/posts/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { contentType, status, limit } = req.query;
@@ -114,8 +115,8 @@ export function createContentGenerationRouter(): Router {
 
   router.get('/posts/detail/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const data = await contentGenerationOrchestrator.getPostWithScores(postId);
@@ -130,8 +131,8 @@ export function createContentGenerationRouter(): Router {
 
   router.put('/posts/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const updates = req.body;
@@ -166,8 +167,8 @@ export function createContentGenerationRouter(): Router {
 
   router.delete('/posts/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const pid = new mongoose.Types.ObjectId(postId);
@@ -191,8 +192,8 @@ export function createContentGenerationRouter(): Router {
 
   router.get('/variations/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const variations = await PostVariation.find({ postId: new mongoose.Types.ObjectId(postId) }).lean();
@@ -206,8 +207,8 @@ export function createContentGenerationRouter(): Router {
 
   router.put('/variations/:variationId/select', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { variationId } = req.params;
       const variation = await PostVariation.findById(variationId);
@@ -233,8 +234,8 @@ export function createContentGenerationRouter(): Router {
 
   router.get('/drafts/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const { status, limit } = req.query;
@@ -256,8 +257,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/validate/voice', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { content, voiceProfile } = req.body;
       const result = voiceDNAEngine.validate(content, voiceProfile);
@@ -272,8 +273,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/validate/brand', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { content, topic, brandProfile } = req.body;
       const result = brandDNAEngine.validate(content, topic, brandProfile);
@@ -287,8 +288,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/evaluate/career', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const input: CareerAlignmentInput = req.body;
       const result = careerAlignmentEngine.evaluate(input);
@@ -302,8 +303,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/review', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const result = contentReviewEngine.review(req.body);
       res.json(result);
@@ -316,8 +317,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/score', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const result = contentScoringEngine.score(req.body);
       res.json(result);
@@ -330,8 +331,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/optimize', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const result = linkedInOptimizationEngine.optimize(req.body);
       res.json(result);
@@ -344,8 +345,8 @@ export function createContentGenerationRouter(): Router {
 
   router.post('/variations/generate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const variations = postVariationEngine.generateThree(req.body);
       res.json({ variations });
@@ -358,8 +359,8 @@ export function createContentGenerationRouter(): Router {
 
   router.get('/status/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);

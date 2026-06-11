@@ -8,11 +8,12 @@ import { TopicCluster } from '../models/content-pillars/TopicCluster';
 import { AuthorityMap } from '../models/content-pillars/AuthorityMap';
 import { ContentDistribution } from '../models/content-pillars/ContentDistribution';
 import { PillarSnapshot } from '../models/content-pillars/PillarSnapshot';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createContentPillarRouter(): Router {
@@ -22,8 +23,8 @@ export function createContentPillarRouter(): Router {
 
   router.post('/full-report', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, profileData } = req.body;
       if (!userId || !profileData) return res.status(400).json({ error: 'userId and profileData required' });
@@ -40,8 +41,8 @@ export function createContentPillarRouter(): Router {
 
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const userId = req.query.userId as string;
       if (!userId) return res.status(400).json({ error: 'userId required' });

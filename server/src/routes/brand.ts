@@ -16,12 +16,13 @@ import { StoryBank } from '../models/brand/StoryBank';
 import { BrandRecommendation } from '../models/brand/BrandRecommendation';
 import { VoiceProfile } from '../models/brand/VoiceProfile';
 import type { LinkedInUserProfile } from '../types/linkedin';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 const profileParser = new ProfileParser();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createBrandRouter(): Router {
@@ -31,8 +32,8 @@ export function createBrandRouter(): Router {
 
   router.get('/dna', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const userId = req.query.userId as string;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -51,8 +52,8 @@ export function createBrandRouter(): Router {
     try {
       const { profileId } = req.params;
       const { userId } = req.body;
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
       logger.info({ profileId, userId }, 'Generating Brand DNA via orchestrator');
@@ -83,8 +84,8 @@ export function createBrandRouter(): Router {
 
   router.put('/dna', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, updates } = req.body;
       if (!userId || !updates) return res.status(400).json({ error: 'userId and updates required' });
@@ -197,8 +198,8 @@ export function createBrandRouter(): Router {
 
   router.get('/voice', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const userId = req.query.userId as string;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -215,8 +216,8 @@ export function createBrandRouter(): Router {
 
   router.post('/voice/generate', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId, brandDnaId } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });

@@ -24,11 +24,12 @@ import { StrategyRecommendation } from '../models/analytics/StrategyRecommendati
 import { OpportunityPerformance } from '../models/analytics/OpportunityPerformance';
 import { CareerImpactReport } from '../models/analytics/CareerImpactReport';
 import { OptimizationHistory } from '../models/analytics/OptimizationHistory';
+import { getAuthenticatedUserId } from '../utils/auth';
 
 const logger = pino();
 
-function getClerkId(req: Request): string | null {
-  return (req.headers['x-clerk-user-id'] as string) || null;
+function getUserId(req: Request): string | null {
+  return getAuthenticatedUserId(req);
 }
 
 export function createAnalyticsRouter(): Router {
@@ -38,8 +39,8 @@ export function createAnalyticsRouter(): Router {
 
   router.post('/ingest', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const result = await analyticsOrchestrator.ingestAnalytics(req.body);
       res.json(result);
@@ -53,8 +54,8 @@ export function createAnalyticsRouter(): Router {
 
   router.post('/analyze', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -70,8 +71,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/performance/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const summary = await analyticsOrchestrator.performanceSummary(userId);
@@ -86,8 +87,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/content/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const [learningModel, success, failures] = await Promise.all([
@@ -105,8 +106,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/content/post/:postId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { postId } = req.params;
       const result = await contentPerformanceEngine.analyzePost(postId, req.query.userId as string);
@@ -121,8 +122,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/audience/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const analysis = await audienceIntelligenceEngine.analyze(userId);
@@ -137,8 +138,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/pillars/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const pillars = await contentPillarOptimizationEngine.evaluateAll(userId);
@@ -152,8 +153,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/strategy/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const result = await strategyOptimizationEngine.optimize(userId);
@@ -167,8 +168,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/opportunities/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const [ranking, byType] = await Promise.all([
@@ -185,8 +186,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/career/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const impact = await careerImpactEngine.measure(userId);
@@ -201,8 +202,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/forecasts/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const period = (req.query.period as '30_days' | '90_days' | '12_months') || '90_days';
@@ -218,8 +219,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/recommendations/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const recs = await analyticsOrchestrator.saveRecommendations(userId);
@@ -233,8 +234,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/reports/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const type = (req.query.type as 'weekly' | 'monthly' | 'quarterly') || 'weekly';
@@ -249,8 +250,8 @@ export function createAnalyticsRouter(): Router {
 
   router.post('/optimize', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -266,8 +267,8 @@ export function createAnalyticsRouter(): Router {
 
   router.post('/decide', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const decision = await analyticsOrchestrator.makeDecision(req.body);
       res.json(decision);
@@ -280,8 +281,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/dashboard/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const data = await analyticsOrchestrator.getDashboard(userId);
@@ -295,8 +296,8 @@ export function createAnalyticsRouter(): Router {
 
   router.post('/events', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { type, userId, data } = req.body;
       const result = await analyticsOrchestrator.triggerEvent(type, userId, data);
@@ -310,8 +311,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/trends/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const metric = (req.query.metric as string) || 'engagement';
@@ -335,8 +336,8 @@ export function createAnalyticsRouter(): Router {
 
   router.get('/status/:userId', async (req: Request, res: Response) => {
     try {
-      const clerkId = getClerkId(req);
-      if (!clerkId) return res.status(401).json({ error: 'Authentication required' });
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const { userId } = req.params;
       const uid = new mongoose.Types.ObjectId(userId);
