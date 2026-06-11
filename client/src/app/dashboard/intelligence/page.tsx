@@ -130,6 +130,36 @@ export default function IntelligenceReportPage() {
         return;
       }
 
+      const onboardingAnalysis = stateData?.state?.analysisResult;
+      if (onboardingAnalysis) {
+        setReport({
+          userId: '',
+          profileId: '',
+          generatedAt: new Date().toISOString(),
+          scores: {
+            profile: { overall: onboardingAnalysis.scores?.technicalLeadership || 0, breakdown: [] },
+            branding: { overall: onboardingAnalysis.scores?.personalBrand || 0, breakdown: [] },
+            visibility: { overall: onboardingAnalysis.scores?.industryAuthority || 0, breakdown: [] },
+            opportunity: { overall: onboardingAnalysis.scores?.careerOpportunity || 0, breakdown: [] },
+            contentReadiness: { overall: onboardingAnalysis.scores?.contentReadiness || 0, breakdown: [] },
+          },
+          analysis: {
+            strengths: onboardingAnalysis.profileSummary?.strengths || [],
+            weaknesses: onboardingAnalysis.profileSummary?.weaknesses || [],
+            summary: onboardingAnalysis.profileSummary?.overallSummary || '',
+            careerStage: onboardingAnalysis.profileSummary?.careerStage || '',
+            industryAlignment: onboardingAnalysis.scores?.industryAuthority || 0,
+            skillGaps: [],
+            experienceQuality: {},
+          },
+          recommendations: [],
+          contentOpportunities: onboardingAnalysis.contentPillars || [],
+          missingOpportunities: [],
+        });
+        setLoading(false);
+        return;
+      }
+
       const userProfile = await api.profile.getByUser().catch(() => null);
       if (userProfile?._id) {
         window.history.replaceState({}, '', `/dashboard/intelligence?profileId=${userProfile._id}`);

@@ -49,6 +49,8 @@ export interface IOnboardingState extends Document {
     resume: IResumeSource;
     portfolio: IPortfolioSource;
   };
+  linkedinUrl?: string;
+  githubUrl?: string;
   careerGoals: string[];
   postingFrequency: 'never' | 'occasionally' | 'monthly' | 'weekly' | 'daily';
   analysisStatus: 'pending' | 'in_progress' | 'completed' | 'failed';
@@ -56,6 +58,7 @@ export interface IOnboardingState extends Document {
   analysisLog: string[];
   analysisStartedAt?: Date;
   analysisCompletedAt?: Date;
+  analysisResult?: Record<string, any>;
   brandDnaGenerated: boolean;
   voiceSamplesCount: number;
   startedAt: Date;
@@ -147,6 +150,8 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
     },
   },
   careerGoals: [String],
+  linkedinUrl: { type: String, default: '' },
+  githubUrl: { type: String, default: '' },
   postingFrequency: {
     type: String,
     enum: ['never', 'occasionally', 'monthly', 'weekly', 'daily'],
@@ -160,6 +165,7 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
   analysisLog: [String],
   analysisStartedAt: Date,
   analysisCompletedAt: Date,
+  analysisResult: { type: Schema.Types.Mixed, default: null },
   brandDnaGenerated: { type: Boolean, default: false },
   voiceSamplesCount: { type: Number, default: 0 },
   startedAt: { type: Date, default: Date.now },

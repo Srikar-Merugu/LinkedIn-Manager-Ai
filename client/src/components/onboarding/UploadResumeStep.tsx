@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Upload, CheckCircle2, AlertCircle, Loader2, X, File } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface UploadResumeStepProps {
   onComplete: (data: { fileInfo: any; parsedData: any }) => void;
@@ -21,7 +22,7 @@ export function UploadResumeStep({ onComplete, onSkip }: UploadResumeStepProps) 
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped && (dropped.type === 'application/pdf' || dropped.name.endsWith('.docx'))) {
+    if (dropped && (dropped.type === 'application/pdf' || dropped.name.endsWith('.docx') || dropped.name.endsWith('.pdf'))) {
       setFile(dropped);
       handleParse(dropped);
     } else {
@@ -40,28 +41,18 @@ export function UploadResumeStep({ onComplete, onSkip }: UploadResumeStepProps) 
   const handleParse = async (file: File) => {
     setParsing(true);
     setError('');
-    await new Promise(r => setTimeout(r, 2000));
-    setParsing(false);
-    setParsed(true);
-
-    const simulatedParsed = {
-      skills: ['TypeScript', 'React', 'Node.js', 'Python', 'AWS', 'Docker'],
-      experience: [
-        { title: 'Senior Engineer', organization: 'Tech Co', startDate: '2020', current: true, description: 'Full-stack development', highlights: ['Led team', 'Delivered projects'] },
-        { title: 'Engineer', organization: 'Startup Inc', startDate: '2018', endDate: '2020', description: 'Backend development', highlights: ['Built APIs'] },
-      ],
-      education: [{ degree: 'B.S. Computer Science', institution: 'University', field: 'CS', endYear: 2018 }],
-      certifications: ['AWS Solutions Architect'],
-      projects: [],
-      summary: 'Experienced software engineer with 5+ years...',
-      languages: ['English', 'Spanish'],
-      rawText: '...',
-    };
-
-    onComplete({
-      fileInfo: { fileName: file.name, fileType: file.type || 'application/pdf', fileSize: file.size },
-      parsedData: simulatedParsed,
-    });
+    try {
+      const data = await api.onboarding.uploadResumeFile(file);
+      setParsing(false);
+      setParsed(true);
+      onComplete({
+        fileInfo: data.fileInfo,
+        parsedData: data.parsed,
+      });
+    } catch (err) {
+      setParsing(false);
+      setError(err instanceof Error ? err.message : 'Failed to parse resume');
+    }
   };
 
   return (

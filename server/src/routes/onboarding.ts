@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { onboardingService } from '../services/onboarding/OnboardingService';
-import { PortfolioData } from '../models/onboarding/PortfolioData';
+import { brandAnalysisEngine } from '../services/analysis/BrandAnalysisEngine';
 import { getTokenFromReq, verifyToken } from '../utils/jwt';
 import pino from 'pino';
 
@@ -51,16 +51,22 @@ export function createOnboardingRouter(): Router {
     }
   });
 
-  router.post('/steps/linkedin', async (req: Request, res: Response) => {
+  router.post('/steps/linkedin-url', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { profileId, accessToken } = req.body;
-      if (!profileId || !accessToken) {
-        return res.status(400).json({ error: 'profileId and accessToken required' });
-      }
-      const state = await onboardingService.saveLinkedInData(userId, profileId, accessToken);
-      res.json(state);
+      const { linkedinUrl } = req.body;
+      if (!linkedinUrl) return res.status(400).json({ error: 'linkedinUrl required' });
+
+      const { OnboardingState } = await import('../models/onboarding/OnboardingState');
+      const state = await OnboardingState.findOne({ userId: new (await import('mongoose')).default.Types.ObjectId(userId) });
+      if (!state) return res.status(404).json({ error: 'Onboarding state not found' });
+
+      (state as any).linkedinUrl = linkedinUrl;
+      await state.save();
+
+      const result = await onboardingService.completeStep(userId, 'connect_linkedin', { linkedinUrl });
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -77,40 +83,22 @@ export function createOnboardingRouter(): Router {
     }
   });
 
-  router.post('/steps/github', async (req: Request, res: Response) => {
+  router.post('/steps/github-url', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { username, ...githubInfo } = req.body;
-      if (!username) return res.status(400).json({ error: 'username required' });
-      const state = await onboardingService.saveGitHubData(userId, username, githubInfo);
-      res.json(state);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+      const { githubUrl } = req.body;
+      if (!githubUrl) return res.status(400).json({ error: 'githubUrl required' });
 
-  router.post('/steps/portfolio', async (req: Request, res: Response) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { url, ...portfolioInfo } = req.body;
-      if (!url) return res.status(400).json({ error: 'url required' });
-      const state = await onboardingService.completeStep(userId, 'connect_portfolio', { url, ...portfolioInfo });
-      res.json(state);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+      const { OnboardingState } = await import('../models/onboarding/OnboardingState');
+      const state = await OnboardingState.findOne({ userId: new (await import('mongoose')).default.Types.ObjectId(userId) });
+      if (!state) return res.status(404).json({ error: 'Onboarding state not found' });
 
-  router.post('/steps/content-experience', async (req: Request, res: Response) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { frequency } = req.body;
-      if (!frequency) return res.status(400).json({ error: 'frequency required' });
-      const state = await onboardingService.saveContentExperience(userId, frequency);
-      res.json(state);
+      (state as any).githubUrl = githubUrl;
+      await state.save();
+
+      const result = await onboardingService.completeStep(userId, 'connect_github', { githubUrl });
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -131,21 +119,6 @@ export function createOnboardingRouter(): Router {
     }
   });
 
-  router.post('/steps/voice', async (req: Request, res: Response) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { samples } = req.body;
-      if (!samples || !Array.isArray(samples)) {
-        return res.status(400).json({ error: 'samples array required' });
-      }
-      const state = await onboardingService.saveVoiceSamples(userId, samples);
-      res.json(state);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
   router.post('/steps/skip', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
@@ -159,26 +132,87 @@ export function createOnboardingRouter(): Router {
     }
   });
 
-  router.post('/analysis/start', async (req: Request, res: Response) => {
+  router.post('/steps/:step/complete', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const state = await onboardingService.startAIAnalysis(userId);
+      const { step } = req.params;
+      const state = await onboardingService.completeStep(userId, step as any, req.body);
       res.json(state);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  router.post('/analysis/progress', async (req: Request, res: Response) => {
+  router.post('/resume/upload', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-      const { progress, logEntry } = req.body;
-      const state = await onboardingService.updateAnalysisProgress(userId, progress, logEntry);
-      res.json(state);
+
+      const multer = (await import('multer')).default;
+      const pdfParse = (await import('pdf-parse')) as any;
+      const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+      await new Promise<void>((resolve, reject) => {
+        upload.single('resume')(req as any, res as any, (err: any) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+      let parsed: any = {};
+      if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
+        const data = await pdfParse(file.buffer);
+        parsed = {
+          rawText: data.text,
+          summary: data.text.substring(0, 500),
+          skills: [],
+          experience: [],
+          education: [],
+        };
+      } else {
+        parsed = {
+          rawText: file.buffer.toString('utf-8'),
+          summary: file.buffer.toString('utf-8').substring(0, 500),
+          skills: [],
+          experience: [],
+          education: [],
+        };
+      }
+
+      res.json({ parsed, fileInfo: { fileName: file.originalname, fileType: file.mimetype, fileSize: file.size } });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      logger.error({ error }, 'Resume upload failed');
+      res.status(500).json({ error: error.message || 'Failed to upload resume' });
+    }
+  });
+
+  router.post('/analysis/run', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const analysisResult = await brandAnalysisEngine.runFullAnalysis(userId);
+
+      const { OnboardingState } = await import('../models/onboarding/OnboardingState');
+      const state = await OnboardingState.findOne({ userId: new (await import('mongoose')).default.Types.ObjectId(userId) });
+      if (state) {
+        (state as any).analysisResult = analysisResult;
+        (state as any).analysisStatus = 'completed';
+        (state as any).analysisProgress = 100;
+        (state as any).brandDnaGenerated = true;
+        (state as any).completedAt = new Date();
+        (state as any).status = 'completed';
+        await state.save();
+      }
+
+      res.json(analysisResult);
+    } catch (error: any) {
+      logger.error({ error: error.message }, 'Analysis failed');
+      res.status(500).json({ error: error.message || 'Analysis failed' });
     }
   });
 
@@ -186,6 +220,14 @@ export function createOnboardingRouter(): Router {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const { OnboardingState } = await import('../models/onboarding/OnboardingState');
+      const state = await OnboardingState.findOne({ userId: new (await import('mongoose')).default.Types.ObjectId(userId) });
+
+      if (state && (state as any).analysisResult) {
+        return res.json((state as any).analysisResult);
+      }
+
       const summary = await onboardingService.getOnboardingSummary(userId);
       res.json(summary);
     } catch (error: any) {

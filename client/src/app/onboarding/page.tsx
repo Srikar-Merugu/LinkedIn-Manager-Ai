@@ -1,18 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { WelcomeScreen } from '@/components/onboarding/WelcomeScreen';
-import { ConnectLinkedInStep } from '@/components/onboarding/ConnectLinkedInStep';
+import { LinkedInUrlStep } from '@/components/onboarding/LinkedInUrlStep';
 import { UploadResumeStep } from '@/components/onboarding/UploadResumeStep';
-import { ConnectGitHubStep } from '@/components/onboarding/ConnectGitHubStep';
-import { ConnectPortfolioStep } from '@/components/onboarding/ConnectPortfolioStep';
+import { GithubUrlStep } from '@/components/onboarding/GithubUrlStep';
 import { CareerGoalsStep } from '@/components/onboarding/CareerGoalsStep';
-import { ContentExperienceStep } from '@/components/onboarding/ContentExperienceStep';
-import { VoiceTrainingStep } from '@/components/onboarding/VoiceTrainingStep';
-import { AIAnalysisStep } from '@/components/onboarding/AIAnalysisStep';
+import { AiAnalysisStep } from '@/components/onboarding/AIAnalysisStep';
 import { ResultsStep } from '@/components/onboarding/ResultsStep';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -25,27 +22,20 @@ export default function OnboardingPage() {
     currentStep, currentStepIndex, percentage, totalSteps,
     loading, error, isAnalysisRunning, analysisProgress, analysisLog,
     onboardingComplete, summary, stepLabel, stepDescription,
-    completeStep, skipStep, updateAnalysis, finishOnboarding, refreshSummary,
+    completeStep, skipStep, runAnalysis, finishOnboarding,
     setCurrentStep,
   } = useOnboarding();
-
-  useEffect(() => {
-    if (currentStep === 'ai_analysis' && analysisProgress >= 100) {
-      const t = setTimeout(() => setCurrentStep('results'), 500);
-      return () => clearTimeout(t);
-    }
-  }, [currentStep, analysisProgress, setCurrentStep]);
 
   const renderStep = () => {
     switch (currentStep) {
       case 'welcome':
         return <WelcomeScreen onComplete={() => completeStep('welcome')} />;
 
-      case 'connect_linkedin':
+      case 'linkedin_url':
         return (
-          <ConnectLinkedInStep
-            onComplete={(data) => completeStep('connect_linkedin', data)}
-            onSkip={() => skipStep('connect_linkedin')}
+          <LinkedInUrlStep
+            onComplete={(data) => completeStep('linkedin_url', data)}
+            onSkip={() => skipStep('linkedin_url')}
           />
         );
 
@@ -57,46 +47,24 @@ export default function OnboardingPage() {
           />
         );
 
-      case 'connect_github':
+      case 'github_url':
         return (
-          <ConnectGitHubStep
-            onComplete={(data) => completeStep('connect_github', data)}
-            onSkip={() => skipStep('connect_github')}
-          />
-        );
-
-      case 'connect_portfolio':
-        return (
-          <ConnectPortfolioStep
-            onComplete={(data) => completeStep('connect_portfolio', data)}
-            onSkip={() => skipStep('connect_portfolio')}
+          <GithubUrlStep
+            onComplete={(data) => completeStep('github_url', data)}
+            onSkip={() => skipStep('github_url')}
           />
         );
 
       case 'career_goals':
         return <CareerGoalsStep onComplete={(data) => completeStep('career_goals', data)} />;
 
-      case 'content_experience':
-        return <ContentExperienceStep onComplete={(data) => completeStep('content_experience', data)} />;
-
-      case 'voice_training':
-        return (
-          <VoiceTrainingStep
-            onComplete={(data) => completeStep('voice_training', data)}
-            onSkip={() => skipStep('voice_training')}
-          />
-        );
-
       case 'ai_analysis':
         return (
-          <AIAnalysisStep
+          <AiAnalysisStep
             progress={analysisProgress}
             log={analysisLog}
-            onProgressUpdate={updateAnalysis}
-            onComplete={() => {
-              completeStep('ai_analysis');
-              refreshSummary();
-            }}
+            isRunning={isAnalysisRunning}
+            onRunAnalysis={runAnalysis}
           />
         );
 

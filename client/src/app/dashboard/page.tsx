@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [analysisData, setAnalysisData] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -67,8 +68,11 @@ export default function DashboardPage() {
     (async () => {
       try {
         const data = await api.onboarding.getState();
-        if (data.state?.connectedSources?.linkedin?.profileId) {
+        if (data.state?.connectedSources?.linkedin?.profileId || data.state?.linkedinUrl) {
           setConnected(true);
+          if (data.state?.analysisResult) {
+            setAnalysisData(data.state.analysisResult);
+          }
           setLoading(false);
           return;
         }
@@ -224,13 +228,19 @@ export default function DashboardPage() {
 
       <StaggerItem>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {[
-            { label: 'Profile Score', score: 72, color: 'from-brand-500 to-brand-600' },
-            { label: 'Branding', score: 65, color: 'from-accent-500 to-accent-600' },
-            { label: 'Visibility', score: 34, color: 'from-amber-500 to-amber-600' },
-            { label: 'Opportunity', score: 78, color: 'from-purple-500 to-purple-600' },
-            { label: 'Content Readiness', score: 28, color: 'from-rose-500 to-rose-600' },
-          ].map((item) => (
+          {(analysisData?.scores ? [
+            { label: 'Technical Leadership', score: analysisData.scores.technicalLeadership || 0, color: 'from-brand-500 to-brand-600' },
+            { label: 'Content Readiness', score: analysisData.scores.contentReadiness || 0, color: 'from-accent-500 to-accent-600' },
+            { label: 'Industry Authority', score: analysisData.scores.industryAuthority || 0, color: 'from-amber-500 to-amber-600' },
+            { label: 'Personal Brand', score: analysisData.scores.personalBrand || 0, color: 'from-purple-500 to-purple-600' },
+            { label: 'Career Opportunity', score: analysisData.scores.careerOpportunity || 0, color: 'from-rose-500 to-rose-600' },
+          ] : [
+            { label: 'Profile Score', score: 0, color: 'from-brand-500 to-brand-600' },
+            { label: 'Branding', score: 0, color: 'from-accent-500 to-accent-600' },
+            { label: 'Visibility', score: 0, color: 'from-amber-500 to-amber-600' },
+            { label: 'Opportunity', score: 0, color: 'from-purple-500 to-purple-600' },
+            { label: 'Content Readiness', score: 0, color: 'from-rose-500 to-rose-600' },
+          ]).map((item) => (
             <GlassCard key={item.label} className="text-center p-6" hover>
               <ScoreGauge
                 score={item.score}

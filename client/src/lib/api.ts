@@ -91,35 +91,41 @@ export const api = {
     completeWelcome: (data?: any) =>
       fetchAPI<any>('/onboarding/steps/welcome', { method: 'POST', body: JSON.stringify(data || {}) }),
 
-    connectLinkedIn: (profileId: string, accessToken: string) =>
-      fetchAPI<any>('/onboarding/steps/linkedin', { method: 'POST', body: JSON.stringify({ profileId, accessToken }) }),
+    saveLinkedInUrl: (linkedinUrl: string) =>
+      fetchAPI<any>('/onboarding/steps/linkedin-url', { method: 'POST', body: JSON.stringify({ linkedinUrl }) }),
 
     uploadResume: (fileInfo: any, parsedData: any) =>
       fetchAPI<any>('/onboarding/steps/resume', { method: 'POST', body: JSON.stringify({ fileInfo, parsedData }) }),
 
-    connectGitHub: (username: string, data?: any) =>
-      fetchAPI<any>('/onboarding/steps/github', { method: 'POST', body: JSON.stringify({ username, ...data }) }),
+    uploadResumeFile: async (file: File) => {
+      const formData = new FormData();
+      formData.append('resume', file);
+      const response = await fetch(`${API_BASE}/onboarding/resume/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to upload resume');
+      }
+      return response.json();
+    },
 
-    connectPortfolio: (url: string, data?: any) =>
-      fetchAPI<any>('/onboarding/steps/portfolio', { method: 'POST', body: JSON.stringify({ url, ...data }) }),
+    saveGithubUrl: (githubUrl: string) =>
+      fetchAPI<any>('/onboarding/steps/github-url', { method: 'POST', body: JSON.stringify({ githubUrl }) }),
 
     saveGoals: (goals: string[]) =>
       fetchAPI<any>('/onboarding/steps/goals', { method: 'POST', body: JSON.stringify({ goals }) }),
 
-    saveContentExperience: (frequency: string) =>
-      fetchAPI<any>('/onboarding/steps/content-experience', { method: 'POST', body: JSON.stringify({ frequency }) }),
-
-    saveVoiceSamples: (samples: any[]) =>
-      fetchAPI<any>('/onboarding/steps/voice', { method: 'POST', body: JSON.stringify({ samples }) }),
-
     skipStep: (step: string) =>
       fetchAPI<any>('/onboarding/steps/skip', { method: 'POST', body: JSON.stringify({ step }) }),
 
-    startAnalysis: () =>
-      fetchAPI<any>('/onboarding/analysis/start', { method: 'POST' }),
+    runAnalysis: () =>
+      fetchAPI<any>('/onboarding/analysis/run', { method: 'POST' }),
 
-    updateAnalysisProgress: (progress: number, logEntry?: string) =>
-      fetchAPI<any>('/onboarding/analysis/progress', { method: 'POST', body: JSON.stringify({ progress, logEntry }) }),
+    completeStep: (step: string, data?: any) =>
+      fetchAPI<any>(`/onboarding/steps/${step}/complete`, { method: 'POST', body: JSON.stringify(data || {}) }),
 
     getSummary: () =>
       fetchAPI<any>('/onboarding/summary'),

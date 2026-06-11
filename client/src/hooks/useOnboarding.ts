@@ -6,52 +6,40 @@ import { api } from '@/lib/api';
 
 type OnboardingStep =
   | 'welcome'
-  | 'connect_linkedin'
+  | 'linkedin_url'
   | 'upload_resume'
-  | 'connect_github'
-  | 'connect_portfolio'
+  | 'github_url'
   | 'career_goals'
-  | 'content_experience'
-  | 'voice_training'
   | 'ai_analysis'
   | 'results';
 
 const STEP_ORDER: OnboardingStep[] = [
   'welcome',
-  'connect_linkedin',
+  'linkedin_url',
   'upload_resume',
-  'connect_github',
-  'connect_portfolio',
+  'github_url',
   'career_goals',
-  'content_experience',
-  'voice_training',
   'ai_analysis',
   'results',
 ];
 
 const STEP_LABELS: Record<OnboardingStep, string> = {
   welcome: 'Welcome',
-  connect_linkedin: 'Connect LinkedIn',
+  linkedin_url: 'LinkedIn Profile',
   upload_resume: 'Upload Resume',
-  connect_github: 'Connect GitHub',
-  connect_portfolio: 'Connect Portfolio',
+  github_url: 'GitHub Profile',
   career_goals: 'Career Goals',
-  content_experience: 'Content Experience',
-  voice_training: 'Voice Training',
   ai_analysis: 'AI Analysis',
   results: 'Your Results',
 };
 
 const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
   welcome: 'Let\'s get started',
-  connect_linkedin: 'Your profile is the source of truth',
+  linkedin_url: 'Your profile is the source of truth',
   upload_resume: 'Bring your experience',
-  connect_github: 'Show your work',
-  connect_portfolio: 'Your online presence',
+  github_url: 'Show your work',
   career_goals: 'What are you working toward?',
-  content_experience: 'Your content baseline',
-  voice_training: 'Teach AI your voice',
-  ai_analysis: 'AI is building your profile',
+  ai_analysis: 'AI is building your brand intelligence',
   results: 'Your personal brand strategy',
 };
 
@@ -84,8 +72,11 @@ export function useOnboarding() {
       try {
         const data = await api.onboarding.getState();
         if (data.state) {
-          setCurrentStep(data.state.currentStep || 'welcome');
-          setCompletedSteps(data.state.completedSteps || []);
+          const step = data.state.currentStep || 'welcome';
+          if (STEP_ORDER.includes(step as OnboardingStep)) {
+            setCurrentStep(step as OnboardingStep);
+          }
+          setCompletedSteps((data.state.completedSteps || []).filter((s: string) => STEP_ORDER.includes(s as OnboardingStep)));
           setPercentage(data.percentage || 0);
           setAnalysisProgress(data.state.analysisProgress || 0);
           setAnalysisLog(data.state.analysisLog || []);
@@ -116,42 +107,32 @@ export function useOnboarding() {
     loadState();
   }, [isLoading, isSignedIn, user]);
 
-  const goToStep = useCallback((step: OnboardingStep) => {
-    setCurrentStep(step);
-  }, []);
-
   const completeStep = useCallback(async (step: OnboardingStep, data?: any) => {
     try {
       switch (step) {
         case 'welcome':
           await api.onboarding.completeWelcome(data);
           break;
-        case 'connect_linkedin':
-          if (data?.profileId && data?.accessToken) {
-            await api.onboarding.connectLinkedIn(data.profileId, data.accessToken);
+        case 'linkedin_url':
+          if (data?.linkedinUrl) {
+            await api.onboarding.saveLinkedInUrl(data.linkedinUrl);
           }
           break;
         case 'upload_resume':
           if (data) await api.onboarding.uploadResume(data.fileInfo, data.parsedData);
           break;
-        case 'connect_github':
-          if (data) await api.onboarding.connectGitHub(data.username, data);
-          break;
-        case 'connect_portfolio':
-          if (data) await api.onboarding.connectPortfolio(data.url, data);
+        case 'github_url':
+          if (data?.githubUrl) {
+            await api.onboarding.saveGithubUrl(data.githubUrl);
+          }
           break;
         case 'career_goals':
           await api.onboarding.saveGoals(data?.goals || []);
           break;
-        case 'content_experience':
-          await api.onboarding.saveContentExperience(data?.frequency || 'never');
-          break;
-        case 'voice_training':
-          if (data) await api.onboarding.saveVoiceSamples(data.samples || []);
-          break;
         case 'ai_analysis':
-          await api.onboarding.startAnalysis();
           setIsAnalysisRunning(true);
+          setAnalysisLog([]);
+          setAnalysisProgress(0);
           break;
         default:
           break;
@@ -162,12 +143,11 @@ export function useOnboarding() {
       const pct = Math.round((newCompleted.length / totalSteps) * 100);
       setPercentage(pct);
 
-      const nextIdx = STEP_ORDER.indexOf(step) + 1;
-      if (nextIdx < STEP_ORDER.length) {
-        setCurrentStep(STEP_ORDER[nextIdx]);
-      } else {
-        setOnboardingComplete(true);
-        setCurrentStep('results');
+      if (step !== 'ai_analysis') {
+        const nextIdx = STEP_ORDER.indexOf(step) + 1;
+        if (nextIdx < STEP_ORDER.length) {
+          setCurrentStep(STEP_ORDER[nextIdx]);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -191,19 +171,31 @@ export function useOnboarding() {
     }
   }, [completedSteps, totalSteps]);
 
-  const updateAnalysis = useCallback(async (progressVal: number, logEntry?: string) => {
-    setAnalysisProgress(progressVal);
-    if (logEntry) setAnalysisLog(prev => [...prev, logEntry]);
-    if (progressVal >= 100) {
+  const runAnalysis = useCallback(async () => {
+    try {
+      setAnalysisProgress(0);
+      setAnalysisLog(['Starting analysis...']);
+
+      const result = await api.onboarding.runAnalysis();
+
+      setAnalysisProgress(100);
+      setAnalysisLog(prev => [...prev, 'Analysis complete!']);
       setIsAnalysisRunning(false);
+      setSummary(result);
+
+      await api.onboarding.completeStep('ai_analysis', { summary: result });
+
+      const newCompleted: OnboardingStep[] = [...completedSteps, 'ai_analysis'];
+      setCompletedSteps(newCompleted);
       setPercentage(100);
       setCurrentStep('results');
       setOnboardingComplete(true);
-      api.onboarding.updateAnalysisProgress(100, 'Analysis complete').catch(() => {});
-    } else if (progressVal % 25 === 0) {
-      api.onboarding.updateAnalysisProgress(progressVal, logEntry).catch(() => {});
+    } catch (err: any) {
+      setAnalysisLog(prev => [...prev, `Error: ${err.message}`]);
+      setIsAnalysisRunning(false);
+      setError(err.message);
     }
-  }, []);
+  }, [completedSteps]);
 
   const finishOnboarding = useCallback(async () => {
     try {
@@ -212,15 +204,6 @@ export function useOnboarding() {
       // Silently handle
     }
     setOnboardingComplete(true);
-  }, []);
-
-  const refreshSummary = useCallback(async () => {
-    try {
-      const s = await api.onboarding.getSummary();
-      setSummary(s);
-    } catch {
-      // Silently handle
-    }
   }, []);
 
   return {
@@ -244,12 +227,10 @@ export function useOnboarding() {
     stepLabels: STEP_LABELS,
     stepDescriptions: STEP_DESCRIPTIONS,
     stepOrder: STEP_ORDER,
-    goToStep,
     setCurrentStep,
     completeStep,
     skipStep,
-    updateAnalysis,
+    runAnalysis,
     finishOnboarding,
-    refreshSummary,
   };
 }
