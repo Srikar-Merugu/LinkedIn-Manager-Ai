@@ -43,19 +43,25 @@ export class VoiceDNAEngine {
   validate(content: string, profile: VoiceProfile): VoiceValidationResult {
     logger.info('Validating content against voice DNA');
 
-    const vocabularyMatch = this.checkVocabulary(content, profile.vocabularyRules);
-    const toneMatch = this.checkTone(content, profile.toneRules);
-    const storytellingMatch = this.checkStorytelling(content, profile.storytellingRules);
-    const hookMatch = this.checkHooks(content, profile.hookRules);
-    const ctaMatch = this.checkCTAs(content, profile.ctaRules);
+    const vocabularyRules = Array.isArray(profile.vocabularyRules) ? profile.vocabularyRules : [];
+    const toneRules = Array.isArray(profile.toneRules) ? profile.toneRules : [];
+    const storytellingRules = Array.isArray(profile.storytellingRules) ? profile.storytellingRules : [];
+    const hookRules = Array.isArray(profile.hookRules) ? profile.hookRules : [];
+    const ctaRules = Array.isArray(profile.ctaRules) ? profile.ctaRules : [];
+
+    const vocabularyMatch = this.checkVocabulary(content, vocabularyRules);
+    const toneMatch = this.checkTone(content, toneRules);
+    const storytellingMatch = this.checkStorytelling(content, storytellingRules);
+    const hookMatch = this.checkHooks(content, hookRules);
+    const ctaMatch = this.checkCTAs(content, ctaRules);
 
     const issues: VoiceValidationResult['issues'] = [];
 
     if (vocabularyMatch < 70) {
-      issues.push({ rule: 'vocabulary', expected: `Use vocabulary from: ${profile.vocabularyRules.slice(0, 3).join(', ')}`, found: 'Content uses generic terms instead of voice-specific vocabulary', severity: 'high' });
+      issues.push({ rule: 'vocabulary', expected: `Use vocabulary from: ${vocabularyRules.slice(0, 3).join(', ')}`, found: 'Content uses generic terms instead of voice-specific vocabulary', severity: 'high' });
     }
     if (toneMatch < 70) {
-      issues.push({ rule: 'tone', expected: `Tone should be: ${profile.toneRules[0] || 'authentic'}`, found: 'Tone deviates from voice profile', severity: 'medium' });
+      issues.push({ rule: 'tone', expected: `Tone should be: ${toneRules[0] || 'authentic'}`, found: 'Tone deviates from voice profile', severity: 'medium' });
     }
 
     const overall = Math.round((vocabularyMatch + toneMatch + storytellingMatch + hookMatch + ctaMatch) / 5);

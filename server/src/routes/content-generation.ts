@@ -49,15 +49,25 @@ export function createContentGenerationRouter(): Router {
         if (!report) {
           return res.status(400).json({ error: 'Analysis report required', details: 'Complete onboarding first to generate your analysis report.' });
         }
-        if (!input.voiceProfile) input.voiceProfile = (report as any).writingDNA || {};
+        if (!input.voiceProfile) {
+          const wd = (report as any).writingDNA || {};
+          input.voiceProfile = {
+            vocabularyRules: wd.vocabularyProfile?.favoriteWords || wd.vocabularyProfile?.technicalTerms || [],
+            toneRules: wd.toneProfile?.primary ? [wd.toneProfile.primary, ...(wd.toneProfile.secondary || [])] : [],
+            storytellingRules: wd.structureProfile?.usesStories ? ['personal story', 'lessons learned'] : [],
+            hookRules: wd.hooks?.map((h: any) => h.text) || [],
+            ctaRules: wd.ctas?.map((c: any) => c.text) || [],
+            communicationRules: wd.communicationStyle ? [wd.communicationStyle] : [],
+          };
+        }
         if (!input.brandProfile) {
           const bd = (report as any).brandDNA || {};
           input.brandProfile = {
             positioning: bd.positioning || '',
             audience: bd.targetAudience ? [bd.targetAudience] : [],
             expertise: bd.brandTerritory || [],
-            authorityAreas: bd.brandRules?.map((r: any) => r.rule || r) || [],
-            brandRules: bd.brandRules?.map((r: any) => r.rule || r) || [],
+            authorityAreas: bd.brandRules?.map((r: any) => typeof r === 'string' ? r : r.rule || '') || [],
+            brandRules: bd.brandRules?.map((r: any) => typeof r === 'string' ? r : r.rule || '') || [],
             brandVoice: bd.brandVoice || '',
             targetIndustries: [],
             targetRoles: [],
