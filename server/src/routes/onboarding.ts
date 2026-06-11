@@ -150,7 +150,7 @@ export function createOnboardingRouter(): Router {
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
       const multer = (await import('multer')).default;
-      const pdfParse = (await import('pdf-parse')) as any;
+      const PDFParser = (await import('pdf2json')).default;
       const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
       await new Promise<void>((resolve, reject) => {
@@ -165,10 +165,26 @@ export function createOnboardingRouter(): Router {
 
       let parsed: any = {};
       if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
-        const data = await pdfParse(file.buffer);
+        const pdfParser = new PDFParser();
+        const text = await new Promise<string>((resolve, reject) => {
+          pdfParser.on('pdfParser_dataError', (errData: any) => reject(errData.parserError));
+          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+            let extractedText = '';
+            const pages = pdfData.Pages || [];
+            pages.forEach((page: any) => {
+              (page.Texts || []).forEach((t: any) => {
+                (t.R || []).forEach((r: any) => {
+                  extractedText += decodeURIComponent(r.T) + ' ';
+                });
+              });
+            });
+            resolve(extractedText);
+          });
+          pdfParser.loadPDF(file.buffer);
+        });
         parsed = {
-          rawText: data.text,
-          summary: data.text.substring(0, 500),
+          rawText: text,
+          summary: (text || '').substring(0, 500),
           skills: [],
           experience: [],
           education: [],
