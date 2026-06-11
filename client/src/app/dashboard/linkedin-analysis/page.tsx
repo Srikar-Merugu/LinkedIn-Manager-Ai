@@ -475,10 +475,10 @@ export default function IntelligenceReportPage() {
                     <div>
                       <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Career Goals</p>
                       <div className="space-y-1">
-                        {report.careerBlueprint.careerGoals.slice(0, 4).map((g: string, i: number) => (
+                        {report.careerBlueprint.careerGoals.slice(0, 4).map((g: any, i: number) => (
                           <div key={i} className="flex items-center gap-2 text-sm text-surface-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                            {g}
+                            {typeof g === 'string' ? g : g.goal || g.title || JSON.stringify(g)}
                           </div>
                         ))}
                       </div>
@@ -488,8 +488,10 @@ export default function IntelligenceReportPage() {
                     <div>
                       <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Skill Gaps</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {report.careerBlueprint.skillGaps.slice(0, 5).map((s: string, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-xs text-amber-400 border border-amber-500/20">{s}</span>
+                        {report.careerBlueprint.skillGaps.slice(0, 5).map((s: any, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-xs text-amber-400 border border-amber-500/20">
+                            {typeof s === 'string' ? s : s.skill || s.name || JSON.stringify(s)}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -498,8 +500,10 @@ export default function IntelligenceReportPage() {
                     <div>
                       <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Suggested Content Topics</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {report.careerBlueprint.suggestedTopics.slice(0, 5).map((t: string, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-brand-500/10 text-xs text-brand-400 border border-brand-500/20">{t}</span>
+                        {report.careerBlueprint.suggestedTopics.slice(0, 5).map((t: any, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-brand-500/10 text-xs text-brand-400 border border-brand-500/20">
+                            {typeof t === 'string' ? t : t.topic || t.title || JSON.stringify(t)}
+                          </span>
                         ))}
                       </div>
                     </div>

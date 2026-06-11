@@ -65,14 +65,17 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [reportData, calendarData, queueData] = await Promise.allSettled([
-        api.report.get(),
-        api.contentOperations.getCalendar(''),
-        api.contentOperations.getQueue(''),
-      ]);
-      if (reportData.status === 'fulfilled') setReport(reportData.value ?? null);
-      if (calendarData.status === 'fulfilled') setCalendarEntries(calendarData.value || []);
-      if (queueData.status === 'fulfilled') setQueueItems(queueData.value || []);
+      const reportData = await api.report.get();
+      setReport(reportData ?? null);
+
+      if (reportData) {
+        const [calendarData, queueData] = await Promise.allSettled([
+          api.contentOperations.getCalendar(reportData.userId || ''),
+          api.contentOperations.getQueue(reportData.userId || ''),
+        ]);
+        if (calendarData.status === 'fulfilled') setCalendarEntries(calendarData.value || []);
+        if (queueData.status === 'fulfilled') setQueueItems(queueData.value || []);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to load dashboard data.');
     } finally {
