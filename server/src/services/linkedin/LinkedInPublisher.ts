@@ -1,6 +1,6 @@
 import axios from 'axios';
 import pino from 'pino';
-import { LinkedInConnection } from '../../models/identity/LinkedInConnection';
+import { LinkedInConnection, encrypt, decrypt } from '../../models/identity/LinkedInConnection';
 
 const logger = pino();
 
@@ -26,13 +26,20 @@ export class LinkedInPublisher {
         return { success: false, error: 'LinkedIn account not connected', status: 'failed' };
       }
 
-      let accessToken = connection.getAccessToken();
+      let accessToken = decrypt(connection.accessTokenEncrypted);
 
       // Refresh token if expired
-      if (connection.isTokenExpired() && connection.refreshTokenEncrypted) {
+      const isExpired = Date.now() >= connection.tokenExpiresAt.getTime();
+      if (isExpired && connection.refreshTokenEncrypted) {
         try {
-          const refreshResult = await this.refreshAccessToken(connection.getRefreshToken());
-          connection.setTokens(refreshResult.access_token, refreshResult.refresh_token, refreshResult.expires_in);
+          const refreshToken = decrypt(connection.refreshTokenEncrypted);
+          const refreshResult = await this.refreshAccessToken(refreshToken);
+          connection.accessTokenEncrypted = encrypt(refreshResult.access_token);
+          if (refreshResult.refresh_token) {
+            connection.refreshTokenEncrypted = encrypt(refreshResult.refresh_token);
+          }
+          connection.tokenExpiresAt = new Date(Date.now() + (refreshResult.expires_in || 600) * 1000);
+          connection.lastUsedAt = new Date();
           await connection.save();
           accessToken = refreshResult.access_token;
           logger.info({ userId }, 'LinkedIn token refreshed successfully');
@@ -131,11 +138,17 @@ export class LinkedInPublisher {
         return { connected: false, error: 'No LinkedIn connection found' };
       }
 
-      let accessToken = connection.getAccessToken();
+      let accessToken = decrypt(connection.accessTokenEncrypted);
 
-      if (connection.isTokenExpired() && connection.refreshTokenEncrypted) {
-        const refreshResult = await this.refreshAccessToken(connection.getRefreshToken());
-        connection.setTokens(refreshResult.access_token, refreshResult.refresh_token, refreshResult.expires_in);
+      const isExpired = Date.now() >= connection.tokenExpiresAt.getTime();
+      if (isExpired && connection.refreshTokenEncrypted) {
+        const refreshToken = decrypt(connection.refreshTokenEncrypted);
+        const refreshResult = await this.refreshAccessToken(refreshToken);
+        connection.accessTokenEncrypted = encrypt(refreshResult.access_token);
+        if (refreshResult.refresh_token) {
+          connection.refreshTokenEncrypted = encrypt(refreshResult.refresh_token);
+        }
+        connection.tokenExpiresAt = new Date(Date.now() + (refreshResult.expires_in || 600) * 1000);
         await connection.save();
         accessToken = refreshResult.access_token;
       }

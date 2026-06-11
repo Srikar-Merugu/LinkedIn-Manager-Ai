@@ -21,7 +21,7 @@ export interface ILinkedInConnection extends Document {
 const ENCRYPTION_KEY = (process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars!!').substring(0, 32);
 const IV_LENGTH = 16;
 
-function encrypt(text: string): string {
+export function encrypt(text: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(text);
@@ -29,7 +29,8 @@ function encrypt(text: string): string {
   return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
-function decrypt(encryptedText: string): string {
+export function decrypt(encryptedText: string): string {
+  if (!encryptedText || !encryptedText.includes(':')) return '';
   const parts = encryptedText.split(':');
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = Buffer.from(parts[1], 'hex');
@@ -59,26 +60,6 @@ const LinkedInConnectionSchema = new Schema<ILinkedInConnection>({
 
 LinkedInConnectionSchema.index({ userId: 1 }, { unique: true });
 LinkedInConnectionSchema.index({ linkedinUserId: 1 });
-
-// Virtual methods for encrypted fields
-LinkedInConnectionSchema.methods.getAccessToken = function (): string {
-  return decrypt(this.accessTokenEncrypted);
-};
-
-LinkedInConnectionSchema.methods.getRefreshToken = function (): string {
-  return this.refreshTokenEncrypted ? decrypt(this.refreshTokenEncrypted) : '';
-};
-
-LinkedInConnectionSchema.methods.setTokens = function (accessToken: string, refreshToken?: string, expiresIn?: number) {
-  this.accessTokenEncrypted = encrypt(accessToken);
-  if (refreshToken) this.refreshTokenEncrypted = encrypt(refreshToken);
-  if (expiresIn) this.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
-  this.lastUsedAt = new Date();
-};
-
-LinkedInConnectionSchema.methods.isTokenExpired = function (): boolean {
-  return Date.now() >= this.tokenExpiresAt.getTime();
-};
 
 export const LinkedInConnection: Model<ILinkedInConnection> = mongoose.model<ILinkedInConnection>('LinkedInConnection', LinkedInConnectionSchema);
 export default LinkedInConnection;
