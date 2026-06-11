@@ -57,7 +57,7 @@ type ReportData = {
 };
 
 export default function IntelligenceReportPage() {
-  const { user, isAuthenticated, isLoading: isLoaded } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isSignedIn = isAuthenticated;
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<ReportData | null>(null);
@@ -74,7 +74,7 @@ export default function IntelligenceReportPage() {
   });
 
   const loadReport = useCallback(async () => {
-    if (!isLoaded) return;
+    if (isLoading) return;
     try {
       setLoading(true);
       const params = new URLSearchParams(window.location.search);
@@ -148,7 +148,7 @@ export default function IntelligenceReportPage() {
       setError(err instanceof Error ? err.message : 'Failed to load intelligence report');
       setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoading, user]);
 
   useEffect(() => {
     loadReport();

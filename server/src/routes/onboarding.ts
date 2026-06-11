@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { onboardingService } from '../services/onboarding/OnboardingService';
+import { PortfolioData } from '../models/onboarding/PortfolioData';
 import { getTokenFromReq, verifyToken } from '../utils/jwt';
 import pino from 'pino';
 
@@ -83,6 +84,32 @@ export function createOnboardingRouter(): Router {
       const { username, ...githubInfo } = req.body;
       if (!username) return res.status(400).json({ error: 'username required' });
       const state = await onboardingService.saveGitHubData(userId, username, githubInfo);
+      res.json(state);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.post('/steps/portfolio', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const { url, ...portfolioInfo } = req.body;
+      if (!url) return res.status(400).json({ error: 'url required' });
+      const state = await onboardingService.completeStep(userId, 'connect_portfolio', { url, ...portfolioInfo });
+      res.json(state);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.post('/steps/content-experience', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+      const { frequency } = req.body;
+      if (!frequency) return res.status(400).json({ error: 'frequency required' });
+      const state = await onboardingService.saveContentExperience(userId, frequency);
       res.json(state);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -56,7 +56,7 @@ const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
 };
 
 export function useOnboarding() {
-  const { user, isAuthenticated, isLoading: isLoaded } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isSignedIn = isAuthenticated;
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [completedSteps, setCompletedSteps] = useState<OnboardingStep[]>([]);
@@ -73,7 +73,7 @@ export function useOnboarding() {
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (isLoading) return;
 
     async function loadState() {
       if (!isSignedIn || !user) {
@@ -114,7 +114,7 @@ export function useOnboarding() {
     }
 
     loadState();
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoading, isSignedIn, user]);
 
   const goToStep = useCallback((step: OnboardingStep) => {
     setCurrentStep(step);
@@ -235,7 +235,7 @@ export function useOnboarding() {
     onboardingComplete,
     summary,
     isSignedIn,
-    isLoaded,
+    isLoading,
     user,
     stepLabel: STEP_LABELS[currentStep],
     stepDescription: STEP_DESCRIPTIONS[currentStep],

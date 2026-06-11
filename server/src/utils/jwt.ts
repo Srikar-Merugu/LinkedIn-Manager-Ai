@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 import { env } from '../config/env';
 
-const COOKIE_NAME = 'personaos_token';
+const COOKIE_NAME = 'session';
 
 export interface JwtPayload {
   userId: string;

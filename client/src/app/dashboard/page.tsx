@@ -25,7 +25,7 @@ import { MotionDiv, StaggerContainer, StaggerItem } from '@/components/ui/Motion
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading: isLoaded } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const isSignedIn = isAuthenticated;
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!isLoaded) return;
+    if (isLoading) return;
 
     if (!isSignedIn) {
       setLoading(false);
@@ -83,7 +83,7 @@ export default function DashboardPage() {
 
       setLoading(false);
     })();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoading, isSignedIn]);
 
   if (loading) {
     return (
