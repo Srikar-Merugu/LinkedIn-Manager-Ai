@@ -50,7 +50,19 @@ export function createContentGenerationRouter(): Router {
           return res.status(400).json({ error: 'Analysis report required', details: 'Complete onboarding first to generate your analysis report.' });
         }
         if (!input.voiceProfile) input.voiceProfile = (report as any).writingDNA || {};
-        if (!input.brandProfile) input.brandProfile = (report as any).brandDNA || {};
+        if (!input.brandProfile) {
+          const bd = (report as any).brandDNA || {};
+          input.brandProfile = {
+            positioning: bd.positioning || '',
+            audience: bd.targetAudience ? [bd.targetAudience] : [],
+            expertise: bd.brandTerritory || [],
+            authorityAreas: bd.brandRules?.map((r: any) => r.rule || r) || [],
+            brandRules: bd.brandRules?.map((r: any) => r.rule || r) || [],
+            brandVoice: bd.brandVoice || '',
+            targetIndustries: [],
+            targetRoles: [],
+          };
+        }
         if (!input.careerGoals) input.careerGoals = (report as any).careerBlueprint?.careerGoals || [];
         if (!input.currentRole) input.currentRole = (report as any).resumeAnalysis?.currentRole || '';
       }

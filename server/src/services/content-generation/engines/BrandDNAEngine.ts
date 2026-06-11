@@ -64,7 +64,10 @@ export class BrandDNAEngine {
 
   private checkAudience(content: string, profile: BrandProfile): number {
     const content_lower = content.toLowerCase();
-    const audienceTerms = [...profile.audience, ...profile.targetIndustries, ...profile.targetRoles];
+    const audience = Array.isArray(profile.audience) ? profile.audience : [];
+    const targetIndustries = Array.isArray(profile.targetIndustries) ? profile.targetIndustries : [];
+    const targetRoles = Array.isArray(profile.targetRoles) ? profile.targetRoles : [];
+    const audienceTerms = [...audience, ...targetIndustries, ...targetRoles];
     if (audienceTerms.length === 0) return 70;
     const matched = audienceTerms.filter(t => content_lower.includes(t.toLowerCase())).length;
     return Math.min(100, Math.round((matched / audienceTerms.length) * 100));
@@ -72,7 +75,9 @@ export class BrandDNAEngine {
 
   private checkExpertise(content: string, profile: BrandProfile): number {
     const content_lower = content.toLowerCase();
-    const expertiseTerms = [...profile.expertise, ...profile.authorityAreas];
+    const expertise = Array.isArray(profile.expertise) ? profile.expertise : [];
+    const authorityAreas = Array.isArray(profile.authorityAreas) ? profile.authorityAreas : [];
+    const expertiseTerms = [...expertise, ...authorityAreas];
     if (expertiseTerms.length === 0) return 75;
     const matched = expertiseTerms.filter(t => content_lower.includes(t.toLowerCase())).length;
     return Math.min(100, Math.round((matched / expertiseTerms.length) * 100));
