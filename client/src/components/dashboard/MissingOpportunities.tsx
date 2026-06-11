@@ -42,7 +42,7 @@ export function MissingOpportunities({ opportunities }: MissingOpportunitiesProp
 
       <div className="space-y-3">
         {opportunities.map((item, index) => {
-          const effort = effortConfig[item.effortToFix];
+          const effort = effortConfig[item.effortToFix] || { label: item.effortToFix || 'Medium', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
           return (
             <motion.div
               key={item.id}

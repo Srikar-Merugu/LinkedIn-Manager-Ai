@@ -46,7 +46,7 @@ export function ContentOpportunities({ opportunities }: ContentOpportunitiesProp
 
       <div className="space-y-4">
         {opportunities.map((item, index) => {
-          const format = formatConfig[item.format];
+          const format = formatConfig[item.format] || { label: item.format || 'Post', color: 'bg-brand-500/10 text-brand-400 border-brand-500/20' };
           return (
             <motion.div
               key={item.id}

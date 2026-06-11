@@ -127,7 +127,7 @@ export function Recommendations({ recommendations, quickWins }: RecommendationsP
 
         <div className="space-y-4">
           {recommendations.map((item, index) => {
-            const priority = priorityConfig[item.priority];
+            const priority = priorityConfig[item.priority] || { label: item.priority || 'Medium', icon: Zap, color: 'text-brand-400 bg-brand-500/10 border-brand-500/20', barColor: 'bg-brand-500' };
             const PriorityIcon = priority.icon;
 
             return (
