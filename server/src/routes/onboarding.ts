@@ -182,12 +182,13 @@ export function createOnboardingRouter(): Router {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
-      const analysisResult = await brandAnalysisEngine.runFullAnalysis(userId);
+      const { analysisService } = await import('../services/analysis/AnalysisService');
+      const report = await analysisService.generateFullReport(userId);
 
       const { OnboardingState } = await import('../models/onboarding/OnboardingState');
       const state = await OnboardingState.findOne({ userId: new (await import('mongoose')).default.Types.ObjectId(userId) });
       if (state) {
-        (state as any).analysisResult = analysisResult;
+        (state as any).analysisResult = report;
         (state as any).analysisStatus = 'completed';
         (state as any).analysisProgress = 100;
         (state as any).brandDnaGenerated = true;
@@ -196,7 +197,7 @@ export function createOnboardingRouter(): Router {
         await state.save();
       }
 
-      res.json(analysisResult);
+      res.json(report);
     } catch (error: any) {
       logger.error({ error: error.message }, 'Analysis failed');
       res.status(500).json({ error: error.message || 'Analysis failed' });

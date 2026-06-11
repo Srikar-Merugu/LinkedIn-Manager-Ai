@@ -2,16 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, TrendingUp, Target, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { GlassCard } from '@/components/ui/GlassCard';
+import Link from 'next/link';
+import { Lightbulb, TrendingUp, Target, ArrowRight, Loader2, AlertCircle, Zap, BarChart3 } from 'lucide-react';
+import { GlassCard, GlassCardHeader } from '@/components/ui/GlassCard';
 import { api } from '@/lib/api';
 
-type Recommendation = {
-  title: string;
-  reason: string;
-  impact: 'high' | 'medium' | 'low';
+type QuickWin = {
+  action: string;
+  impact: string;
+  effort: string;
   category: string;
 };
+
+type Opportunity = {
+  title: string;
+  description: string;
+  score: number;
+  pillar: string;
+  effort: string;
+  timeframe: string;
+};
+
+type AnalysisReport = {
+  quickWins: QuickWin[];
+  opportunities: Opportunity[];
+} | null;
 
 const impactColors: Record<string, string> = {
   high: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -19,70 +34,27 @@ const impactColors: Record<string, string> = {
   low: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
 };
 
+const scoreColors: Record<string, string> = {
+  high: 'text-emerald-400',
+  medium: 'text-amber-400',
+  low: 'text-blue-400',
+};
+
 export default function RecommendationsPage() {
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [report, setReport] = useState<AnalysisReport>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRecommendations();
+    loadReport();
   }, []);
 
-  const loadRecommendations = async () => {
+  const loadReport = async () => {
     try {
       setLoading(true);
-      const stateData = await api.onboarding.getState().catch(() => null);
-      const analysisResult = stateData?.state?.analysisResult;
-
-      if (analysisResult) {
-        const recs: Recommendation[] = [];
-
-        // Convert quick wins to recommendations
-        if (analysisResult.quickWins) {
-          for (const win of analysisResult.quickWins) {
-            recs.push({
-              title: win.action,
-              reason: `Impact: ${win.impact} | Effort: ${win.effort}`,
-              impact: win.impact as 'high' | 'medium' | 'low',
-              category: 'Quick Win',
-            });
-          }
-        }
-
-        // Add strategy-based recommendations
-        if (analysisResult.strategy90Day) {
-          for (const phase of analysisResult.strategy90Day.slice(0, 2)) {
-            for (const task of phase.tasks.slice(0, 2)) {
-              recs.push({
-                title: task,
-                reason: `${phase.focus} — ${phase.week}`,
-                impact: 'medium',
-                category: phase.focus,
-              });
-            }
-          }
-        }
-
-        // Add weakness-based recommendations
-        if (analysisResult.profileSummary?.weaknesses) {
-          for (const weakness of analysisResult.profileSummary.weaknesses.slice(0, 3)) {
-            recs.push({
-              title: `Address: ${weakness}`,
-              reason: 'This was identified as a gap in your profile analysis',
-              impact: 'high',
-              category: 'Profile Improvement',
-            });
-          }
-        }
-
-        setRecommendations(recs.length > 0 ? recs : [
-          { title: 'Complete your onboarding analysis', reason: 'Run a full profile analysis to get personalized recommendations', impact: 'high', category: 'Getting Started' },
-        ]);
-      } else {
-        setRecommendations([
-          { title: 'Complete your onboarding analysis', reason: 'Run a full profile analysis to get personalized recommendations', impact: 'high', category: 'Getting Started' },
-        ]);
-      }
+      setError(null);
+      const data = await api.report.get();
+      setReport(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load recommendations');
     } finally {
@@ -109,39 +81,128 @@ export default function RecommendationsPage() {
     );
   }
 
+  if (!report) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <GlassCard className="p-8 text-center max-w-md">
+          <Lightbulb className="w-12 h-12 text-brand-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white/90 mb-2">Complete onboarding to see recommendations</h2>
+          <p className="text-surface-400 mb-6">Run a full profile analysis to get personalized AI-powered recommendations.</p>
+          <Link
+            href="/onboarding"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors"
+          >
+            Start Onboarding
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  const quickWins = report.quickWins || [];
+  const opportunities = report.opportunities || [];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white/90">Recommendations</h1>
         <p className="text-sm text-white/40 mt-1">AI-powered suggestions to grow your personal brand.</p>
       </div>
-      <div className="grid gap-4">
-        {recommendations.map((r, i) => (
-          <motion.div
-            key={`${r.title}-${i}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
-            <GlassCard className="p-5 group cursor-pointer hover:border-brand-500/30 transition-all duration-300">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Lightbulb className="w-4 h-4 text-brand-400" />
-                    <h3 className="font-semibold text-white/90">{r.title}</h3>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${impactColors[r.impact] || ''}`}>
-                      {r.impact} Impact
-                    </span>
+
+      {/* Quick Wins Section */}
+      {quickWins.length > 0 && (
+        <section>
+          <GlassCard className="p-0">
+            <GlassCardHeader
+              title="Quick Wins"
+              description="High-impact actions you can take right now"
+              className="px-6 pt-6 pb-0"
+            />
+            <div className="divide-y divide-white/5">
+              {quickWins.map((win, i) => (
+                <motion.div
+                  key={`quickwin-${i}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="px-6 py-4 hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                        <h3 className="font-medium text-white/90">{win.action}</h3>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-white/40">
+                        <span className={`px-2 py-0.5 rounded-full border ${impactColors[win.impact] || ''}`}>
+                          {win.impact} impact
+                        </span>
+                        <span>Effort: {win.effort}</span>
+                        <span className="uppercase tracking-wider">{win.category}</span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-white/20 flex-shrink-0 mt-1" />
                   </div>
-                  <p className="text-sm text-white/50">{r.reason}</p>
-                  <span className="text-[10px] text-white/30 uppercase tracking-wider">{r.category}</span>
-                </div>
-                <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-brand-400 group-hover:translate-x-1 transition-all" />
-              </div>
-            </GlassCard>
-          </motion.div>
-        ))}
-      </div>
+                </motion.div>
+              ))}
+            </div>
+          </GlassCard>
+        </section>
+      )}
+
+      {/* Opportunities Section */}
+      {opportunities.length > 0 && (
+        <section>
+          <GlassCard className="p-0">
+            <GlassCardHeader
+              title="Opportunities"
+              description="Strategic opportunities to expand your personal brand"
+              className="px-6 pt-6 pb-0"
+            />
+            <div className="divide-y divide-white/5">
+              {opportunities.map((opp, i) => (
+                <motion.div
+                  key={`opportunity-${i}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="px-6 py-4 hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <h3 className="font-medium text-white/90">{opp.title}</h3>
+                        <span className={`text-sm font-semibold ${scoreColors[opp.score >= 80 ? 'high' : opp.score >= 50 ? 'medium' : 'low']}`}>
+                          {opp.score}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/50">{opp.description}</p>
+                      <div className="flex items-center gap-3 text-xs text-white/40">
+                        <span className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5">
+                          {opp.pillar}
+                        </span>
+                        <span>Effort: {opp.effort}</span>
+                        <span>Timeframe: {opp.timeframe}</span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-white/20 flex-shrink-0 mt-1" />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </GlassCard>
+        </section>
+      )}
+
+      {quickWins.length === 0 && opportunities.length === 0 && (
+        <GlassCard className="p-8 text-center">
+          <Target className="w-12 h-12 text-brand-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white/90 mb-2">No recommendations yet</h2>
+          <p className="text-surface-400">Your analysis report is being generated. Check back soon for personalized recommendations.</p>
+        </GlassCard>
+      )}
     </div>
   );
 }

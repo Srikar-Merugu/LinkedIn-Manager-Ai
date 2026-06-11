@@ -624,4 +624,15 @@ export const api = {
 
   health: () =>
     fetchAPI<{ status: string; timestamp: string; version: string }>('/health'),
+
+  report: {
+    get: () =>
+      fetchAPI<any>('/report/report'),
+
+    generate: () =>
+      fetchAPI<any>('/report/generate', { method: 'POST' }),
+
+    getSection: (section: string) =>
+      fetchAPI<any>(`/report/section/${section}`),
+  },
 };

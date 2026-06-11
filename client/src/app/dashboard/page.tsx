@@ -1,93 +1,93 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Linkedin,
   BarChart3,
   Lightbulb,
-  TrendingUp,
   Target,
   ArrowRight,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
   RefreshCw,
+  AlertCircle,
+  ClipboardCheck,
 } from 'lucide-react';
 import { GlassCard, GlassCardHeader } from '@/components/ui/GlassCard';
 import { ScoreGauge } from '@/components/ui/ScoreGauge';
-import { GradientBorder } from '@/components/ui/GradientBorder';
 import { CardSkeleton } from '@/components/ui/Skeleton';
-import { ConnectLinkedIn } from '@/components/layout/ConnectLinkedIn';
 import { api } from '@/lib/api';
 import { MotionDiv, StaggerContainer, StaggerItem } from '@/components/ui/MotionDiv';
-import { cn } from '@/lib/utils';
+import Link from 'next/link';
+
+interface AnalysisReport {
+  scores: {
+    technicalLeadership: number;
+    contentReadiness: number;
+    industryAuthority: number;
+    personalBrand: number;
+    careerOpportunity: number;
+  };
+  profileSummary?: string;
+  brandDNA?: {
+    archetype?: string;
+    voice?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+const SCORE_CONFIG = [
+  { key: 'technicalLeadership', label: 'Technical Leadership', color: 'from-brand-500 to-brand-600' },
+  { key: 'contentReadiness', label: 'Content Readiness', color: 'from-accent-500 to-accent-600' },
+  { key: 'industryAuthority', label: 'Industry Authority', color: 'from-amber-500 to-amber-600' },
+  { key: 'personalBrand', label: 'Personal Brand', color: 'from-purple-500 to-purple-600' },
+  { key: 'careerOpportunity', label: 'Career Opportunity', color: 'from-rose-500 to-rose-600' },
+] as const;
+
+const QUICK_ACTIONS = [
+  {
+    icon: BarChart3,
+    title: 'View Intelligence Report',
+    description: 'Full analysis of your profile',
+    gradient: 'from-brand-500 to-brand-600',
+    href: '/dashboard/intelligence',
+  },
+  {
+    icon: Lightbulb,
+    title: 'Review Recommendations',
+    description: 'Personalized action items',
+    gradient: 'from-accent-500 to-accent-600',
+    href: '/dashboard/recommendations',
+  },
+  {
+    icon: Target,
+    title: 'Explore Opportunities',
+    description: 'Content & growth opportunities',
+    gradient: 'from-purple-500 to-purple-600',
+    href: '/dashboard/opportunities',
+  },
+] as const;
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const isSignedIn = isAuthenticated;
-  const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [analysisData, setAnalysisData] = useState<Record<string, any> | null>(null);
+  const [report, setReport] = useState<AnalysisReport | null>(null);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.report.get();
+      setReport(data.report ?? null);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load your analysis report.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const linkedinId = params.get('linkedinId');
-
-    if (token && linkedinId) {
-      setConnected(true);
-      setSyncing(true);
-
-      const interval = setInterval(() => {
-        setSyncProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => setSyncing(false), 500);
-            return 100;
-          }
-          return prev + 5;
-        });
-      }, 300);
-
-      window.history.replaceState({}, '', '/dashboard');
-      return;
-    }
-
-    if (isLoading) return;
-
-    if (!isSignedIn) {
-      setLoading(false);
-      return;
-    }
-
-    (async () => {
-      try {
-        const data = await api.onboarding.getState();
-        if (data.state?.connectedSources?.linkedin?.profileId || data.state?.linkedinUrl) {
-          setConnected(true);
-          if (data.state?.analysisResult) {
-            setAnalysisData(data.state.analysisResult);
-          }
-          setLoading(false);
-          return;
-        }
-      } catch {}
-
-      try {
-        const userProfile = await api.profile.getByUser();
-        if (userProfile?._id) {
-          setConnected(true);
-        }
-      } catch {}
-
-      setLoading(false);
-    })();
-  }, [isLoading, isSignedIn]);
+    fetchReport();
+  }, []);
 
   if (loading) {
     return (
@@ -98,6 +98,11 @@ export default function DashboardPage() {
             <div className="skeleton h-4 w-72" />
           </div>
           <div className="skeleton h-10 w-40 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -118,9 +123,10 @@ export default function DashboardPage() {
           </h2>
           <p className="text-surface-400 mb-6">{error}</p>
           <button
-            onClick={() => window.location.reload()}
-            className="btn-primary"
+            onClick={fetchReport}
+            className="btn-primary gap-2"
           >
+            <RefreshCw className="w-4 h-4" />
             Try Again
           </button>
         </div>
@@ -128,86 +134,40 @@ export default function DashboardPage() {
     );
   }
 
-  if (!connected) {
+  if (!report) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <MotionDiv direction="up" className="max-w-md w-full">
           <GlassCard glow className="text-center p-12">
-            <GradientBorder animate className="inline-flex mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center">
-                <Linkedin className="w-10 h-10 text-white" />
-              </div>
-            </GradientBorder>
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center mx-auto mb-8">
+              <ClipboardCheck className="w-10 h-10 text-white" />
+            </div>
 
             <h1 className="text-2xl font-bold text-surface-100 mb-3">
-              Connect Your LinkedIn
+              Complete Your Onboarding
             </h1>
             <p className="text-surface-400 mb-8 leading-relaxed">
-              Unlock your full LinkedIn intelligence report. We'll analyze your
-              profile and generate personalized recommendations.
+              Finish your onboarding to unlock your full LinkedIn intelligence
+              report with personalized scores and recommendations.
             </p>
 
-            <ConnectLinkedIn onConnected={() => setConnected(true)} />
+            <Link
+              href="/onboarding"
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              Go to Onboarding
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </GlassCard>
         </MotionDiv>
       </div>
     );
   }
 
-  if (syncing) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md">
-          <div className="relative w-24 h-24 mx-auto mb-8">
-            <Loader2 className="w-24 h-24 text-brand-500 animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-lg font-bold text-surface-100">
-                {syncProgress}%
-              </span>
-            </div>
-          </div>
-
-          <h2 className="text-xl font-semibold text-surface-100 mb-3">
-            Analyzing Your Profile
-          </h2>
-
-          <div className="space-y-3 mb-8">
-            {[
-              'Importing profile data...',
-              'Analyzing experience & skills...',
-              'Calculating scores...',
-              'Generating recommendations...',
-            ].map((step, i) => (
-              <div
-                key={step}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-500',
-                  syncProgress >= (i + 1) * 25
-                    ? 'bg-accent-500/10 text-accent-400'
-                    : 'text-surface-500'
-                )}
-              >
-                {syncProgress >= (i + 1) * 25 ? (
-                  <CheckCircle2 className="w-4 h-4 text-accent-400" />
-                ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-surface-600" />
-                )}
-                {step}
-              </div>
-            ))}
-          </div>
-
-          <div className="w-full h-1.5 rounded-full bg-surface-800 overflow-hidden">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500"
-              animate={{ width: `${syncProgress}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const { scores, profileSummary, brandDNA } = report;
+  const summaryText = profileSummary || brandDNA?.archetype
+    ? `${brandDNA?.archetype ? `Archetype: ${brandDNA.archetype}. ` : ''}${profileSummary || ''}`
+    : null;
 
   return (
     <StaggerContainer className="space-y-6">
@@ -219,7 +179,10 @@ export default function DashboardPage() {
               Your LinkedIn intelligence overview
             </p>
           </div>
-          <button className="btn-secondary gap-2">
+          <button
+            onClick={fetchReport}
+            className="btn-secondary gap-2"
+          >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
@@ -228,22 +191,10 @@ export default function DashboardPage() {
 
       <StaggerItem>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {(analysisData?.scores ? [
-            { label: 'Technical Leadership', score: analysisData.scores.technicalLeadership || 0, color: 'from-brand-500 to-brand-600' },
-            { label: 'Content Readiness', score: analysisData.scores.contentReadiness || 0, color: 'from-accent-500 to-accent-600' },
-            { label: 'Industry Authority', score: analysisData.scores.industryAuthority || 0, color: 'from-amber-500 to-amber-600' },
-            { label: 'Personal Brand', score: analysisData.scores.personalBrand || 0, color: 'from-purple-500 to-purple-600' },
-            { label: 'Career Opportunity', score: analysisData.scores.careerOpportunity || 0, color: 'from-rose-500 to-rose-600' },
-          ] : [
-            { label: 'Profile Score', score: 0, color: 'from-brand-500 to-brand-600' },
-            { label: 'Branding', score: 0, color: 'from-accent-500 to-accent-600' },
-            { label: 'Visibility', score: 0, color: 'from-amber-500 to-amber-600' },
-            { label: 'Opportunity', score: 0, color: 'from-purple-500 to-purple-600' },
-            { label: 'Content Readiness', score: 0, color: 'from-rose-500 to-rose-600' },
-          ]).map((item) => (
-            <GlassCard key={item.label} className="text-center p-6" hover>
+          {SCORE_CONFIG.map((item) => (
+            <GlassCard key={item.key} className="text-center p-6" hover>
               <ScoreGauge
-                score={item.score}
+                score={scores[item.key] ?? 0}
                 label={item.label}
                 size="sm"
               />
@@ -251,6 +202,20 @@ export default function DashboardPage() {
           ))}
         </div>
       </StaggerItem>
+
+      {summaryText && (
+        <StaggerItem>
+          <GlassCard>
+            <GlassCardHeader
+              title="Profile Summary"
+              description="Your LinkedIn brand at a glance"
+            />
+            <p className="text-surface-300 text-sm leading-relaxed">
+              {summaryText}
+            </p>
+          </GlassCard>
+        </StaggerItem>
+      )}
 
       <StaggerItem>
         <GlassCard>
@@ -260,30 +225,8 @@ export default function DashboardPage() {
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                icon: BarChart3,
-                title: 'View Intelligence Report',
-                description: 'Full analysis of your profile',
-                gradient: 'from-brand-500 to-brand-600',
-                href: '/dashboard/intelligence',
-              },
-              {
-                icon: Lightbulb,
-                title: 'Review Recommendations',
-                description: 'Personalized action items',
-                gradient: 'from-accent-500 to-accent-600',
-                href: '/dashboard/recommendations',
-              },
-              {
-                icon: Target,
-                title: 'Explore Opportunities',
-                description: 'Content & growth opportunities',
-                gradient: 'from-purple-500 to-purple-600',
-                href: '/dashboard/opportunities',
-              },
-            ].map((action) => (
-              <a
+            {QUICK_ACTIONS.map((action) => (
+              <Link
                 key={action.title}
                 href={action.href}
                 className="glass rounded-xl p-5 glass-hover group"
@@ -298,7 +241,7 @@ export default function DashboardPage() {
                   {action.description}
                 </p>
                 <ArrowRight className="w-4 h-4 text-surface-500 mt-3 group-hover:text-brand-400 transition-colors" />
-              </a>
+              </Link>
             ))}
           </div>
         </GlassCard>

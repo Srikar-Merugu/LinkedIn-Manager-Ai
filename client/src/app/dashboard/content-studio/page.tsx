@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -35,8 +36,11 @@ const SOURCE_TYPES = [
 export default function ContentStudioPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('create');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  const [report, setReport] = useState<any>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const [topic, setTopic] = useState('');
   const [context, setContext] = useState('');
@@ -57,8 +61,28 @@ export default function ContentStudioPage() {
   const userId = user?.id || '';
 
   useEffect(() => {
-    if (userId) loadPosts();
+    if (userId) {
+      loadReport();
+      loadPosts();
+    }
   }, [userId]);
+
+  async function loadReport() {
+    setLoading(true);
+    setReportError(null);
+    try {
+      const data = await api.report.get();
+      setReport(data);
+    } catch (e: any) {
+      if (e?.message?.includes('404') || e?.message?.includes('No analysis report')) {
+        setReport(null);
+      } else {
+        setReportError(e?.message || 'Failed to load analysis report');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function loadPosts() {
     try {
@@ -68,25 +92,13 @@ export default function ContentStudioPage() {
   }
 
   async function handleGenerate() {
-    if (!topic || !userId) return;
+    if (!topic || !userId || !report) return;
     setGenerating(true);
     setError(null);
     setResult(null);
     try {
-      // Fetch actual voice and brand profiles from server
-      let voiceProfile = { vocabularyRules: [], toneRules: ['authentic'], storytellingRules: ['personal'], hookRules: [], ctaRules: [], communicationRules: ['clear'] };
-      let brandProfile = { positioning: 'Professional', audience: [], expertise: [topic], authorityAreas: [], brandRules: [], brandVoice: 'Professional', targetIndustries: [], targetRoles: [] };
-
-      try {
-        const [voiceData, brandData] = await Promise.all([
-          api.writing.getDNA(userId).catch(() => null),
-          api.contentPillars.getAuthorityMap(userId).catch(() => null),
-        ]);
-        if (voiceData?.voiceProfile) voiceProfile = voiceData.voiceProfile;
-        if (brandData?.brandProfile) brandProfile = brandData.brandProfile;
-      } catch {
-        // Use defaults if profiles not yet generated
-      }
+      const voiceProfile = report.writingDNA || {};
+      const brandProfile = report.brandDNA || {};
 
       const data = await api.contentGeneration.generate({
         userId,
@@ -101,8 +113,8 @@ export default function ContentStudioPage() {
         personalAngle: personalAngle || undefined,
         challenge: challenge || undefined,
         outcome: outcome || undefined,
-        careerGoals: [],
-        currentRole: '',
+        careerGoals: report.careerGoals || [],
+        currentRole: report.resumeAnalysis?.currentRole || '',
       });
       setResult(data);
       if (data.success) {
@@ -162,6 +174,66 @@ export default function ContentStudioPage() {
     { key: 'voice', label: 'Voice Match', icon: CheckCircle2 },
     { key: 'career', label: 'Career Fit', icon: Target },
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-surface-100">AI Content Studio</h1>
+            <p className="text-sm text-surface-500 mt-1">Generating strategic, voice-aligned LinkedIn content</p>
+          </div>
+        </motion.div>
+        <div className="glass-card rounded-2xl p-6 border border-white/5 text-center py-16">
+          <RefreshCw className="w-8 h-8 text-surface-600 mx-auto mb-3 animate-spin" />
+          <p className="text-surface-500 text-sm">Loading analysis report...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (reportError) {
+    return (
+      <div className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-surface-100">AI Content Studio</h1>
+            <p className="text-sm text-surface-500 mt-1">Generating strategic, voice-aligned LinkedIn content</p>
+          </div>
+        </motion.div>
+        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
+          <p className="text-red-400 text-sm">{reportError}</p>
+          <button onClick={loadReport} className="mt-2 text-xs text-surface-400 hover:text-surface-200 flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="space-y-6">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-surface-100">AI Content Studio</h1>
+            <p className="text-sm text-surface-500 mt-1">Generate strategic, voice-aligned LinkedIn content</p>
+          </div>
+        </motion.div>
+        <div className="glass-card rounded-2xl p-6 border border-white/5 text-center py-16">
+          <Sparkles className="w-12 h-12 text-surface-600 mx-auto mb-3" />
+          <p className="text-surface-300 text-sm font-medium mb-2">Complete onboarding to use Content Studio</p>
+          <p className="text-surface-500 text-xs mb-4">Content Studio requires your analysis report with voice and brand profiles.</p>
+          <Link href="/onboarding"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 shadow-lg shadow-brand-500/25 transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            Go to Onboarding
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
