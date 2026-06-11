@@ -4,7 +4,7 @@
 
 @layer base {
   * {
-    @apply border-surface-700/50;
+    border-color: rgb(67 70 98 / 0.5);
   }
 
   body {
@@ -25,7 +25,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-surface-600/50 rounded-full hover:bg-surface-500/50 transition-colors;
+    background-color: rgb(81 85 120 / 0.5);
+    @apply rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(102 107 146 / 0.5);
   }
 }
 
