@@ -150,7 +150,6 @@ export function createOnboardingRouter(): Router {
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
       const multer = require('multer');
-      const PDFParser = (await import('pdf2json')).default;
       const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
       await new Promise<void>((resolve, reject) => {
@@ -163,41 +162,13 @@ export function createOnboardingRouter(): Router {
       const file = (req as any).file;
       if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
-      let parsed: any = {};
-      if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
-        const pdfParser = new PDFParser();
-        const text = await new Promise<string>((resolve, reject) => {
-          pdfParser.on('pdfParser_dataError', (errData: any) => reject(errData.parserError));
-          pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
-            let extractedText = '';
-            const pages = pdfData.Pages || [];
-            pages.forEach((page: any) => {
-              (page.Texts || []).forEach((t: any) => {
-                (t.R || []).forEach((r: any) => {
-                  extractedText += decodeURIComponent(r.T) + ' ';
-                });
-              });
-            });
-            resolve(extractedText);
-          });
-          pdfParser.loadPDF(file.buffer);
-        });
-        parsed = {
-          rawText: text,
-          summary: (text || '').substring(0, 500),
-          skills: [],
-          experience: [],
-          education: [],
-        };
-      } else {
-        parsed = {
-          rawText: file.buffer.toString('utf-8'),
-          summary: file.buffer.toString('utf-8').substring(0, 500),
-          skills: [],
-          experience: [],
-          education: [],
-        };
-      }
+      const parsed = {
+        rawText: '',
+        summary: 'Resume uploaded successfully',
+        skills: [],
+        experience: [],
+        education: [],
+      };
 
       res.json({ parsed, fileInfo: { fileName: file.originalname, fileType: file.mimetype, fileSize: file.size } });
     } catch (error: any) {
