@@ -127,7 +127,9 @@ export function useOnboarding() {
           await api.onboarding.completeWelcome(data);
           break;
         case 'connect_linkedin':
-          if (data) await api.onboarding.connectLinkedIn(data.profileId, data.accessToken);
+          if (data?.profileId && data?.accessToken) {
+            await api.onboarding.connectLinkedIn(data.profileId, data.accessToken);
+          }
           break;
         case 'upload_resume':
           if (data) await api.onboarding.uploadResume(data.fileInfo, data.parsedData);

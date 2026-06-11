@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Linkedin, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,13 +12,44 @@ interface ConnectLinkedInProps {
 }
 
 export function ConnectLinkedIn({ onConnected, className }: ConnectLinkedInProps) {
-  const [state, setState] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [state, setState] = useState<'idle' | 'connecting' | 'authorizing' | 'connected' | 'error'>('idle');
   const [error, setError] = useState<string>('');
+
+  const checkConnection = useCallback(async () => {
+    try {
+      const profile = await api.profile.getByUser();
+      if (profile?._id) {
+        setState('connected');
+        onConnected?.({ accessToken: '', linkedinId: profile.linkedinId || '' });
+      }
+    } catch {}
+  }, [onConnected]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linkedinStatus = params.get('linkedin');
+
+    if (linkedinStatus === 'connected') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setState('connected');
+      const linkedinId = params.get('linkedinId') || '';
+      onConnected?.({ accessToken: '', linkedinId });
+    } else if (linkedinStatus === 'error') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setState('error');
+      setError('LinkedIn connection failed. Please try again.');
+      setTimeout(() => setState('idle'), 5000);
+    } else {
+      checkConnection();
+    }
+  }, [checkConnection, onConnected]);
 
   const handleConnect = async () => {
     setState('connecting');
+    setError('');
     try {
       const { url } = await api.auth.getLinkedInUrl();
+      setState('authorizing');
       window.location.href = url;
     } catch (err) {
       setState('error');
@@ -62,13 +93,13 @@ export function ConnectLinkedIn({ onConnected, className }: ConnectLinkedInProps
 
       <button
         onClick={handleConnect}
-        disabled={state === 'connecting'}
+        disabled={state === 'connecting' || state === 'authorizing'}
         className="btn-primary w-full gap-3 py-3"
       >
-        {state === 'connecting' ? (
+        {state === 'connecting' || state === 'authorizing' ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            Connecting...
+            {state === 'authorizing' ? 'Redirecting to LinkedIn...' : 'Connecting...'}
           </>
         ) : (
           <>

@@ -16,6 +16,7 @@ import { ScoringEngine } from './services/analysis/ScoringEngine';
 import { ProfileAnalysisEngine } from './services/analysis/ProfileAnalysisEngine';
 import { RecommendationEngine } from './services/analysis/RecommendationEngine';
 import { createAuthRouter } from './routes/auth';
+import { createLinkedInRouter } from './routes/linkedin';
 import { createProfileRouter } from './routes/profile';
 import { createAnalysisRouter } from './routes/analysis';
 import { createOnboardingRouter } from './routes/onboarding';
@@ -84,6 +85,7 @@ export async function createApp(): Promise<express.Express> {
   const recommendationEngine = new RecommendationEngine();
 
   app.use('/api/auth', authLimiter, createAuthRouter());
+  app.use('/api/auth', authLimiter, createLinkedInRouter(linkedinService, syncService));
   app.use('/api/profile', createProfileRouter(linkedinService, syncService, cachingLayer));
   app.use(
     '/api/analysis',

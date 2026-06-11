@@ -17,3 +17,11 @@ services:
         value: /
       - key: PORT
         value: 10000
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false
+      - key: LINKEDIN_SCOPES
+        value: openid profile email w_member_social

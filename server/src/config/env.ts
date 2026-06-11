@@ -13,6 +13,11 @@ export const env = {
 
   encryptionKey: process.env.ENCRYPTION_KEY || 'default-encryption-key-32-chars!!',
 
+  linkedinClientId: process.env.LINKEDIN_CLIENT_ID || '',
+  linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
+  linkedinRedirectUri: process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:4000/api/auth/linkedin/callback',
+  linkedinScopes: process.env.LINKEDIN_SCOPES || 'openid profile email w_member_social',
+
   cacheTtl: parseInt(process.env.CACHE_TTL || '300', 10),
   rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '15', 10),
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
