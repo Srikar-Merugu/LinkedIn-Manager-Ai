@@ -98,6 +98,15 @@ export default function PublishingCenterPage() {
 
   useEffect(() => { loadQueue(); checkLinkedIn(); }, [loadQueue, checkLinkedIn]);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadQueue();
+      checkLinkedIn();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadQueue, checkLinkedIn]);
+
   // Handle URL params from OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -155,6 +164,15 @@ export default function PublishingCenterPage() {
     setUpdating('bulk');
     try {
       await api.publishing.bulkApprove(draftItems.map(i => i._id));
+      await loadQueue();
+    } catch { /* ignore */ }
+    setUpdating(null);
+  }
+
+  async function handleTriggerPublish() {
+    setUpdating('trigger');
+    try {
+      await api.publishing.triggerPublish();
       await loadQueue();
     } catch { /* ignore */ }
     setUpdating(null);
@@ -297,15 +315,26 @@ export default function PublishingCenterPage() {
       )}
 
       {/* Bulk Actions */}
-      {(stats.draft_generated + stats.ready > 0) && linkedinStatus?.connected && (
-        <div className="flex gap-2">
+      <div className="flex gap-2">
+        {(stats.draft_generated + stats.ready > 0) && linkedinStatus?.connected && (
           <button onClick={handleBulkApprove} disabled={updating === 'bulk'}
             className="px-4 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-sm font-medium hover:bg-purple-500/20 disabled:opacity-50 flex items-center gap-2">
             {updating === 'bulk' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             Approve All ({stats.draft_generated + stats.ready})
           </button>
+        )}
+        {stats.scheduled > 0 && linkedinStatus?.connected && (
+          <button onClick={handleTriggerPublish} disabled={updating === 'trigger'}
+            className="px-4 py-2 rounded-xl bg-green-500/10 text-green-400 text-sm font-medium hover:bg-green-500/20 disabled:opacity-50 flex items-center gap-2">
+            {updating === 'trigger' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Trigger Publish ({stats.scheduled})
+          </button>
+        )}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[10px] text-surface-500">Auto-refresh 30s</span>
         </div>
-      )}
+      </div>
 
       {/* Error Banner */}
       {error && (

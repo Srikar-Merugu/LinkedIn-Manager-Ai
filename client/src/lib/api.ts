@@ -429,6 +429,12 @@ export const api = {
         nextScheduledAt: string | null;
         schedulerRunning: boolean;
       }>('/publishing/publisher/status'),
+
+    triggerPublish: () =>
+      fetchAPI<{ queueItems: number; posts: number; published: number }>('/publishing/publisher/trigger', { method: 'POST' }),
+
+    getUpcoming: (userId: string) =>
+      fetchAPI<any[]>(`/publishing/upcoming/${userId}`),
   },
 
   google: {

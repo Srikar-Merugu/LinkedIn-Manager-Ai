@@ -372,5 +372,38 @@ export function createLinkedInPublishingRouter(): Router {
     }
   });
 
+  /* ───────── Manual Trigger (for testing) ───────── */
+
+  router.post('/publisher/trigger', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const result = await autoPublisher.triggerManualCheck();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /* ───────── Upcoming Posts ───────── */
+
+  router.get('/upcoming/:userId', async (req: Request, res: Response) => {
+    try {
+      const authUserId = getUserId(req);
+      if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
+
+      const { userId } = req.params;
+      const posts = await Post.find({
+        userId: new mongoose.Types.ObjectId(userId),
+        status: { $in: ['scheduled', 'published'] },
+      }).sort({ scheduleDate: -1, publishedAt: -1 }).limit(20).lean();
+
+      res.json(posts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 }
