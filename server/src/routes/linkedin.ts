@@ -9,6 +9,10 @@ import { env } from '../config/env';
 
 const logger = pino();
 
+function getClientUrl(): string {
+  return (process.env.CLIENT_URL || 'http://localhost:3000').trim();
+}
+
 export function createLinkedInRouter(
   linkedinService: LinkedInService,
   syncService: ProfileSyncService
@@ -40,14 +44,13 @@ export function createLinkedInRouter(
   router.get('/linkedin/callback', async (req: Request, res: Response) => {
     try {
       const { code, state, error: linkedinError } = req.query;
+      const clientUrl = getClientUrl();
 
       if (linkedinError) {
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=${encodeURIComponent(String(linkedinError))}`);
       }
 
       if (!code || !state) {
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=missing_parameters`);
       }
 
@@ -56,13 +59,11 @@ export function createLinkedInRouter(
         const stateData = JSON.parse(Buffer.from(String(state), 'base64url').toString());
         userId = stateData.userId;
       } catch {
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=invalid_state`);
       }
 
       const user = await User.findById(userId);
       if (!user) {
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=user_not_found`);
       }
 
@@ -71,19 +72,16 @@ export function createLinkedInRouter(
         tokenResponse = await linkedinService.exchangeCodeForToken(String(code));
       } catch (error: any) {
         logger.error({ error: error.message }, 'LinkedIn token exchange failed');
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=token_exchange_failed`);
       }
 
       const accessToken = tokenResponse.access_token;
-      const refreshToken = tokenResponse.refresh_token;
 
       let profile;
       try {
         profile = await linkedinService.getProfile(accessToken);
       } catch (error: any) {
         logger.error({ error: error.message }, 'Failed to fetch LinkedIn profile');
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=profile_fetch_failed`);
       }
 
@@ -100,7 +98,6 @@ export function createLinkedInRouter(
 
       const profileId = syncResult?.success ? syncResult.profileId : null;
 
-      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
       const params = new URLSearchParams({
         linkedin: 'connected',
         linkedinId,
@@ -110,7 +107,7 @@ export function createLinkedInRouter(
       res.redirect(`${clientUrl}/onboarding?${params.toString()}`);
     } catch (error: any) {
       logger.error({ error: error.message }, 'LinkedIn OAuth callback failed');
-      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      const clientUrl = getClientUrl();
       res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=internal_error`);
     }
   });

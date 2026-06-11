@@ -46,7 +46,7 @@ export async function createApp(): Promise<express.Express> {
     crossOriginEmbedderPolicy: false,
   }));
   app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: env.clientUrl,
     credentials: true,
   }));
   app.use(cookieParser());
