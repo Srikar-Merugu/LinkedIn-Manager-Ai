@@ -149,12 +149,12 @@ export function createOnboardingRouter(): Router {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
-      const multer = (await import('multer')).default;
+      const multer = require('multer');
       const PDFParser = (await import('pdf2json')).default;
       const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
       await new Promise<void>((resolve, reject) => {
-        upload.single('resume')(req as any, res as any, (err: any) => {
+        upload.single('resume')(req, res, (err: any) => {
           if (err) reject(err);
           else resolve();
         });
