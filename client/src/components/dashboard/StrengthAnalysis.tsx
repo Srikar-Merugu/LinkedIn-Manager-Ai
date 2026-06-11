@@ -80,7 +80,7 @@ export function StrengthAnalysis({ strengths }: StrengthAnalysisProps) {
 
                 <p className="text-sm text-surface-400 mt-2">{strength.description}</p>
 
-                {strength.evidence.length > 0 && (
+                {strength.evidence && strength.evidence.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {strength.evidence.map((item) => (
                       <span

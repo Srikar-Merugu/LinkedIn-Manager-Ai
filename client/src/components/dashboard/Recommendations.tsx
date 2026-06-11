@@ -174,7 +174,7 @@ export function Recommendations({ recommendations, quickWins }: RecommendationsP
                       {item.description}
                     </p>
 
-                    {item.actions.length > 0 && (
+                    {item.actions && item.actions.length > 0 && (
                       <div className="space-y-1.5 mb-3">
                         {item.actions.map((action, i) => (
                           <div

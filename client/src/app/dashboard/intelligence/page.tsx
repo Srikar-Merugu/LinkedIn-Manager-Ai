@@ -331,7 +331,7 @@ export default function IntelligenceReportPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {data.breakdown.map((item) => (
+                      {(data.breakdown || []).map((item) => (
                         <div
                           key={item.label}
                           className="glass rounded-xl p-4"
@@ -379,29 +379,29 @@ export default function IntelligenceReportPage() {
             }
           />
           <p className="text-surface-300 leading-relaxed">
-            {report.analysis.summary}
+            {report.analysis.summary || 'Complete your analysis to see a summary of your profile.'}
           </p>
         </GlassCard>
       </StaggerItem>
 
       <StaggerItem>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StrengthAnalysis strengths={report.analysis.strengths} />
-          <WeaknessAnalysis weaknesses={report.analysis.weaknesses} />
+          <StrengthAnalysis strengths={report.analysis.strengths || []} />
+          <WeaknessAnalysis weaknesses={report.analysis.weaknesses || []} />
         </div>
       </StaggerItem>
 
       <StaggerItem>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MissingOpportunities opportunities={report.missingOpportunities} />
-          <ContentOpportunities opportunities={report.contentOpportunities} />
+          <MissingOpportunities opportunities={report.missingOpportunities || []} />
+          <ContentOpportunities opportunities={report.contentOpportunities || []} />
         </div>
       </StaggerItem>
 
       <StaggerItem>
         <Recommendations
-          recommendations={report.recommendations}
-          quickWins={report.recommendations.filter(
+          recommendations={report.recommendations || []}
+          quickWins={(report.recommendations || []).filter(
             (r: any) => r.effort === 'low' && (r.priority === 'critical' || r.priority === 'high')
           )}
         />
