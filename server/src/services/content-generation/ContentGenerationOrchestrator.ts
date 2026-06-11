@@ -347,11 +347,16 @@ export class ContentGenerationOrchestrator {
   }
 
   private generateContent(input: GenerateInput): StoryOutput | EducationalOutput | FrameworkOutput | ContrarianOutput {
-    const vp = input.voiceProfile;
-    const storyVP = { vocabulary: vp.vocabularyRules, tone: vp.toneRules[0] || 'authentic', storytellingStyle: vp.storytellingRules[0] || 'personal' };
-    const edVP = { vocabulary: vp.vocabularyRules, tone: vp.toneRules[0] || 'authentic', teachingStyle: vp.communicationRules[0] || 'clear' };
-    const fwVP = { vocabulary: vp.vocabularyRules, tone: vp.toneRules[0] || 'authentic', frameworkStyle: vp.communicationRules[0] || 'structured' };
-    const ctVP = { vocabulary: vp.vocabularyRules, tone: vp.toneRules[0] || 'authentic', contrarianStyle: vp.storytellingRules[0] || 'provocative' };
+    const vp = input.voiceProfile || {};
+    const toneRules = vp.toneRules || [];
+    const vocabularyRules = vp.vocabularyRules || [];
+    const storytellingRules = vp.storytellingRules || [];
+    const communicationRules = vp.communicationRules || [];
+
+    const storyVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', storytellingStyle: storytellingRules[0] || 'personal' };
+    const edVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', teachingStyle: communicationRules[0] || 'clear' };
+    const fwVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', frameworkStyle: communicationRules[0] || 'structured' };
+    const ctVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', contrarianStyle: storytellingRules[0] || 'provocative' };
 
     switch (input.contentType) {
       case 'story':

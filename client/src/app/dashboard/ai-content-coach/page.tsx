@@ -111,18 +111,16 @@ export default function AssistantPage() {
       loadTasks();
     } catch (error: any) {
       let errorContent = 'I encountered an error processing your request. Please try again.';
-      try {
-        const parsed = JSON.parse(error.message?.replace(/^\d+:\s*/, '') || '{}');
-        if (parsed.details) errorContent = parsed.details;
-        else if (parsed.error) errorContent = parsed.error;
-        if (parsed.action === 'complete_onboarding') {
-          errorContent = 'Please complete onboarding first to generate your analysis report. The AI assistant needs your brand DNA, writing DNA, and career blueprint to provide personalized responses.';
-        }
-      } catch {
-        if (error.message?.includes('401')) errorContent = 'Authentication required. Please log in again.';
-        else if (error.message?.includes('403')) errorContent = 'You can only chat as yourself.';
-        else if (error.message?.includes('503')) errorContent = 'The AI assistant is temporarily unavailable. Please try again in a few minutes.';
-        else if (error.message) errorContent = error.message;
+      if (error.action === 'complete_onboarding') {
+        errorContent = 'Please complete onboarding first to generate your analysis report. The AI coach needs your LinkedIn analysis, voice profile, and content strategy to provide personalized responses.';
+      } else if (error.details) {
+        errorContent = error.details;
+      } else if (error.statusCode === 401) {
+        errorContent = 'Authentication required. Please log in again.';
+      } else if (error.statusCode === 503) {
+        errorContent = 'The AI coach is temporarily unavailable. Please try again in a few minutes.';
+      } else if (error.message) {
+        errorContent = error.message;
       }
       setMessages(prev => [...prev, { role: 'assistant', content: errorContent, _id: Date.now().toString() }]);
     } finally {

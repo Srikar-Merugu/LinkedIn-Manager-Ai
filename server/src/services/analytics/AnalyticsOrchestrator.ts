@@ -187,7 +187,7 @@ export class AnalyticsOrchestrator {
   }
 
   async getDashboard(userId: string): Promise<any> {
-    const [summary, performance, pillars, forecast, recommendations, report] = await Promise.all([
+    const results = await Promise.all([
       this.performanceSummary(userId),
       contentPerformanceEngine.getPerformanceDrivers(userId),
       contentPillarOptimizationEngine.evaluateAll(userId),
@@ -195,6 +195,50 @@ export class AnalyticsOrchestrator {
       recommendationEngine.generate(userId, {}),
       executiveInsightsEngine.generate(userId, 'weekly'),
     ]);
+
+    let [summary, performance, pillars, forecast, recommendations, report] = results;
+
+    // If no analytics data, supplement from analysis_reports and content_calendar
+    if (!summary.totalPosts || summary.totalPosts === 0) {
+      try {
+        const mongoose = require('mongoose');
+        const { AnalysisReport } = require('../../models/analysis/AnalysisReport');
+        const { ContentCalendar } = require('../../models/strategy/ContentCalendar');
+        const { QueueItem } = require('../../models/content-operations/QueueItem');
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const [analysisReport, calendarEntries, queueItems] = await Promise.all([
+          AnalysisReport.findOne({ userId: userObjectId }).lean(),
+          ContentCalendar.find({ userId: userObjectId }).lean(),
+          QueueItem.find({ userId: userObjectId }).lean(),
+        ]);
+
+        if (analysisReport) {
+          summary.score = Math.round(
+            ((analysisReport.scores?.technicalLeadership || 0) +
+            (analysisReport.scores?.contentReadiness || 0) +
+            (analysisReport.scores?.industryAuthority || 0) +
+            (analysisReport.scores?.personalBrand || 0) +
+            (analysisReport.scores?.careerOpportunity || 0)) / 5
+          );
+        }
+
+        summary.totalPosts = calendarEntries.length || queueItems.length || 0;
+        summary.totalEngagement = 0;
+        summary.avgEngagementRate = 0;
+        summary.followerGrowth = 0;
+
+        const published = queueItems.filter((q: any) => q.stage === 'published').length;
+        const scheduled = queueItems.filter((q: any) => q.stage === 'scheduled').length;
+        const draft = queueItems.filter((q: any) => q.stage === 'draft_generated' || q.stage === 'ready').length;
+
+        if (!recommendations || !recommendations.summary) {
+          recommendations = { summary: 'No recommendations available', critical: [], high: [], medium: [], low: [] };
+        }
+      } catch (e) {
+        logger.warn({ error: (e as Error).message }, 'Failed to load supplementary analytics data');
+      }
+    }
 
     return {
       summary,

@@ -446,7 +446,7 @@ export default function IntelligenceReportPage() {
                     <div>
                       <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Vocabulary</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {(Array.isArray(report.writingDNA.vocabulary) ? report.writingDNA.vocabulary : report.writingDNA.vocabulary.keywords || []).slice(0, 8).map((w: string, i: number) => (
+                        {(Array.isArray(report.writingDNA.vocabulary) ? report.writingDNA.vocabulary : report.writingDNA.vocabulary?.keywords || []).slice(0, 8).map((w: string, i: number) => (
                           <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.05] text-xs text-surface-300">{w}</span>
                         ))}
                       </div>

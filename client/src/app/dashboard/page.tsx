@@ -44,7 +44,7 @@ interface CalendarEntry {
 interface QueueItem {
   _id: string;
   topic: string;
-  status: string;
+  stage: string;
 }
 
 const QUICK_ACTIONS = [
@@ -146,10 +146,10 @@ export default function DashboardPage() {
     ((scores.technicalLeadership || 0) + (scores.contentReadiness || 0) + (scores.industryAuthority || 0) + (scores.personalBrand || 0) + (scores.careerOpportunity || 0)) / 5
   );
 
-  const publishedCount = queueItems.filter(q => q.status === 'published').length;
-  const scheduledCount = queueItems.filter(q => q.status === 'scheduled').length;
-  const draftCount = queueItems.filter(q => q.status === 'draft').length;
-  const readyCount = queueItems.filter(q => q.status === 'ready').length;
+  const publishedCount = queueItems.filter(q => q.stage === 'published').length;
+  const scheduledCount = queueItems.filter(q => q.stage === 'scheduled').length;
+  const draftCount = queueItems.filter(q => q.stage === 'draft_generated').length;
+  const readyCount = queueItems.filter(q => q.stage === 'ready').length;
 
   const upcomingEntries = calendarEntries
     .filter(e => new Date(e.date) >= new Date())
@@ -313,15 +313,15 @@ export default function DashboardPage() {
                 {queueItems.slice(0, 5).map(item => (
                   <div key={item._id} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/5">
                     <div className={cn('w-2 h-2 rounded-full',
-                      item.status === 'published' ? 'bg-green-500' :
-                      item.status === 'scheduled' ? 'bg-blue-500' :
-                      item.status === 'ready' ? 'bg-amber-500' : 'bg-surface-500'
+                      item.stage === 'published' ? 'bg-green-500' :
+                      item.stage === 'scheduled' ? 'bg-blue-500' :
+                      item.stage === 'ready' ? 'bg-amber-500' : 'bg-surface-500'
                     )} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-surface-200 truncate">{item.topic}</p>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/[0.05] text-surface-400 capitalize">
-                      {item.status}
+                      {item.stage?.replace('_', ' ')}
                     </span>
                   </div>
                 ))}

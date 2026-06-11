@@ -365,9 +365,9 @@ export default function ContentStudioPage() {
                       </div>
                     </div>
 
-                    {result.scoring && (
+                    {result.scoring?.breakdown && (
                       <div className="grid grid-cols-5 gap-2">
-                        {Object.entries(result.scoring.breakdown || {}).slice(0, 5).map(([key, val]) => (
+                        {Object.entries(result.scoring.breakdown).slice(0, 5).map(([key, val]) => (
                           <div key={key} className={cn('p-2 rounded-lg border text-center', getScoreBg(val as number))}>
                             <p className="text-xs text-surface-500 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
                             <p className={cn('text-sm font-bold', getScoreColor(val as number))}>{String(val)}</p>
@@ -560,7 +560,7 @@ export default function ContentStudioPage() {
                   </div>
                   <div className="text-xs text-surface-500">{r.aiPhraseCount} AI phrases, {r.clicheCount} cliches</div>
                 </div>
-                {r.issues?.slice(0, 5).map((issue: any, j: number) => (
+                {(r.issues || []).slice(0, 5).map((issue: any, j: number) => (
                   <div key={j} className="p-2 rounded-lg bg-white/[0.02] border border-white/5">
                     <p className="text-xs text-surface-400 capitalize font-medium">{issue.type.replace(/_/g, ' ')}</p>
                     <p className="text-xs text-surface-500 mt-0.5">{issue.suggestion}</p>

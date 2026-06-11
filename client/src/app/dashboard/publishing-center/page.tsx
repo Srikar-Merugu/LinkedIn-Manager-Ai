@@ -10,7 +10,7 @@ import {
   Loader2, FileText, Eye, ArrowRight,
 } from 'lucide-react';
 
-type QueueStatus = 'draft' | 'ready' | 'scheduled' | 'published';
+type QueueStatus = 'draft_generated' | 'ready' | 'scheduled' | 'published';
 
 interface QueueItem {
   _id: string;
@@ -19,13 +19,13 @@ interface QueueItem {
   contentType: string;
   pillarName: string;
   scheduledDate?: string;
-  status: QueueStatus;
+  stage: QueueStatus;
   draft?: string;
   overallScore?: number;
 }
 
 const STATUS_CONFIG: Record<QueueStatus, { label: string; color: string; bg: string }> = {
-  draft: { label: 'Draft', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+  draft_generated: { label: 'Draft', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
   ready: { label: 'Ready for Review', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
   scheduled: { label: 'Scheduled', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
   published: { label: 'Published', color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
@@ -70,23 +70,23 @@ export default function PublishingCenterPage() {
   async function handleDelete(item: QueueItem) {
     setUpdating(item._id);
     try {
-      await api.contentOperations.updateQueueItem(item._id, { status: 'draft' });
+      await api.contentOperations.updateQueueItem(item._id, { stage: 'draft_generated' });
       await loadQueue();
     } catch { /* ignore */ }
     setUpdating(null);
   }
 
-  const filteredItems = activeFilter === 'all' ? items : items.filter(i => i.status === activeFilter);
+  const filteredItems = activeFilter === 'all' ? items : items.filter(i => i.stage === activeFilter);
 
   const stats = {
-    draft: items.filter(i => i.status === 'draft').length,
-    ready: items.filter(i => i.status === 'ready').length,
-    scheduled: items.filter(i => i.status === 'scheduled').length,
-    published: items.filter(i => i.status === 'published').length,
+    draft_generated: items.filter(i => i.stage === 'draft_generated').length,
+    ready: items.filter(i => i.stage === 'ready').length,
+    scheduled: items.filter(i => i.stage === 'scheduled').length,
+    published: items.filter(i => i.stage === 'published').length,
   };
 
   const workflowStages = [
-    { key: 'draft' as QueueStatus, label: 'Drafts', count: stats.draft, icon: FileText },
+    { key: 'draft_generated' as QueueStatus, label: 'Drafts', count: stats.draft_generated, icon: FileText },
     { key: 'ready' as QueueStatus, label: 'Ready', count: stats.ready, icon: Eye },
     { key: 'scheduled' as QueueStatus, label: 'Scheduled', count: stats.scheduled, icon: Clock },
     { key: 'published' as QueueStatus, label: 'Published', count: stats.published, icon: CheckCircle2 },
@@ -168,8 +168,8 @@ export default function PublishingCenterPage() {
               <div className="flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={cn('px-2 py-0.5 rounded text-[10px] font-medium border', STATUS_CONFIG[item.status].bg, STATUS_CONFIG[item.status].color)}>
-                      {STATUS_CONFIG[item.status].label}
+                    <span className={cn('px-2 py-0.5 rounded text-[10px] font-medium border', STATUS_CONFIG[item.stage]?.bg, STATUS_CONFIG[item.stage]?.color)}>
+                      {STATUS_CONFIG[item.stage]?.label}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-white/[0.05] text-[10px] text-surface-400 capitalize">
                       {item.contentType?.replace('_', ' ')}
@@ -189,10 +189,10 @@ export default function PublishingCenterPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {item.status !== 'published' && (
+                  {item.stage !== 'published' && (
                     <button onClick={() => handleAdvanceStatus(item)} disabled={updating === item._id}
                       className="px-3 py-1.5 rounded-lg bg-brand-500/10 text-brand-400 text-xs font-medium hover:bg-brand-500/20 disabled:opacity-50">
-                      {updating === item._id ? '...' : item.status === 'draft' ? 'Mark Ready' : item.status === 'ready' ? 'Schedule' : 'Publish'}
+                      {updating === item._id ? '...' : item.stage === 'draft_generated' ? 'Mark Ready' : item.stage === 'ready' ? 'Schedule' : 'Publish'}
                     </button>
                   )}
                   <button onClick={() => setSelectedItem(item)}
@@ -220,8 +220,8 @@ export default function PublishingCenterPage() {
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-surface-400">Status</span>
-                <span className={cn('px-2 py-0.5 rounded text-xs font-medium border', STATUS_CONFIG[selectedItem.status].bg, STATUS_CONFIG[selectedItem.status].color)}>
-                  {STATUS_CONFIG[selectedItem.status].label}
+                <span className={cn('px-2 py-0.5 rounded text-xs font-medium border', STATUS_CONFIG[selectedItem.stage]?.bg, STATUS_CONFIG[selectedItem.stage]?.color)}>
+                  {STATUS_CONFIG[selectedItem.stage]?.label}
                 </span>
               </div>
               <div className="flex justify-between text-sm">

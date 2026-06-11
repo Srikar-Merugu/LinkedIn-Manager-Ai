@@ -19,6 +19,8 @@ import { contentQualityEngine } from '../services/content-generation/engines/Con
 import { linkedInOptimizationEngine } from '../services/content-generation/engines/LinkedInOptimizationEngine';
 import { contentScoringEngine } from '../services/content-generation/engines/ContentScoringEngine';
 import { getAuthenticatedUserId } from '../utils/auth';
+import { QueueItem } from '../models/content-operations/QueueItem';
+import { AnalysisReport } from '../models/analysis/AnalysisReport';
 
 const logger = pino();
 
@@ -41,10 +43,39 @@ export function createContentGenerationRouter(): Router {
         return res.status(400).json({ error: 'userId, topic, and contentType are required' });
       }
 
-      const report = await contentGenerationOrchestrator.generate(input);
-      res.json(report);
+      // Load analysis report if voiceProfile/brandProfile not provided
+      if (!input.voiceProfile || !input.brandProfile) {
+        const report = await AnalysisReport.findOne({ userId: new mongoose.Types.ObjectId(input.userId) }).lean();
+        if (!report) {
+          return res.status(400).json({ error: 'Analysis report required', details: 'Complete onboarding first to generate your analysis report.' });
+        }
+        if (!input.voiceProfile) input.voiceProfile = (report as any).writingDNA || {};
+        if (!input.brandProfile) input.brandProfile = (report as any).brandDNA || {};
+        if (!input.careerGoals) input.careerGoals = (report as any).careerBlueprint?.careerGoals || [];
+        if (!input.currentRole) input.currentRole = (report as any).resumeAnalysis?.currentRole || '';
+      }
+
+      const result = await contentGenerationOrchestrator.generate(input);
+
+      // Save generated post to publishing queue
+      if (result.success && result.post) {
+        try {
+          await QueueItem.create({
+            userId: new mongoose.Types.ObjectId(input.userId),
+            stage: 'draft_generated',
+            priority: 50,
+            automationMode: 'manual',
+            draftGeneratedAt: new Date(),
+            stageHistory: [{ stage: 'draft_generated', enteredAt: new Date(), triggeredBy: 'content_generation' }],
+          });
+        } catch (queueErr: any) {
+          logger.warn({ error: queueErr.message }, 'Failed to save to publishing queue');
+        }
+      }
+
+      res.json(result);
     } catch (error: any) {
-      logger.error({ error }, 'Generation failed');
+      logger.error({ error: error.message }, 'Generation failed');
       res.status(500).json({ error: error.message || 'Generation failed' });
     }
   });
