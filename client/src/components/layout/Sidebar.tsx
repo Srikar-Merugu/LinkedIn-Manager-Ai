@@ -8,36 +8,26 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   BarChart3,
-  Lightbulb,
-  Target,
   TrendingUp,
-  Sparkles,
+  CalendarDays,
+  PenSquare,
+  Send,
+  Activity,
+  MessageCircle,
   Settings,
   HelpCircle,
   Sparkles as LogoIcon,
-  Fingerprint,
-  PenTool,
-  Compass,
-  Layout,
-  CalendarDays,
-  Activity,
-  MessageCircle, PenSquare,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Intelligence Report', href: '/dashboard/intelligence', icon: BarChart3 },
-  { name: 'Brand Identity', href: '/dashboard/brand', icon: Fingerprint },
-  { name: 'Writing DNA', href: '/dashboard/writing', icon: PenTool },
-  { name: 'Career Blueprint', href: '/dashboard/career', icon: Compass },
-  { name: 'Content Pillars', href: '/dashboard/content-pillars', icon: Layout },
-  { name: 'Recommendations', href: '/dashboard/recommendations', icon: Lightbulb },
+  { name: 'LinkedIn Analysis', href: '/dashboard/linkedin-analysis', icon: BarChart3 },
   { name: 'Content Strategy', href: '/dashboard/content-strategy', icon: TrendingUp },
-  { name: 'Content Ops', href: '/dashboard/content-operations', icon: CalendarDays },
+  { name: 'Content Calendar', href: '/dashboard/content-calendar', icon: CalendarDays },
   { name: 'Content Studio', href: '/dashboard/content-studio', icon: PenSquare },
-  { name: 'Opportunities', href: '/dashboard/opportunities', icon: Target },
-  { name: 'Growth Intelligence', href: '/dashboard/growth-intelligence', icon: Activity },
-  { name: 'AI Assistant', href: '/dashboard/assistant', icon: MessageCircle },
+  { name: 'Publishing Center', href: '/dashboard/publishing-center', icon: Send },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: Activity },
+  { name: 'AI Content Coach', href: '/dashboard/ai-content-coach', icon: MessageCircle },
 ];
 
 const secondary = [
@@ -69,7 +59,7 @@ export function Sidebar() {
               <h1 className="text-lg font-bold text-surface-100">
                 PersonaOS
               </h1>
-              <p className="text-xs text-surface-500">Brand Intelligence</p>
+              <p className="text-xs text-surface-500">AI LinkedIn Coach</p>
             </div>
           </Link>
         </div>

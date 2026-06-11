@@ -30,22 +30,8 @@ import { cn, getScoreColor } from '@/lib/utils';
 interface AnalysisReport {
   _id?: string;
   userId?: string;
-  linkedinAnalysis?: {
-    headline?: string;
-    experience?: any[];
-    education?: any[];
-    skills?: string[];
-    industry?: string;
-    location?: string;
-  };
-  resumeAnalysis?: {
-    summary?: string;
-    skills?: string[];
-    experience?: any[];
-    totalExperienceYears?: number;
-    currentRole?: string;
-    industries?: string[];
-  };
+  linkedinAnalysis?: any;
+  resumeAnalysis?: any;
   scores?: {
     technicalLeadership?: number;
     contentReadiness?: number;
@@ -56,12 +42,10 @@ interface AnalysisReport {
   strengths?: { title: string; category: string; description: string; impact: 'high' | 'medium' | 'low'; score: number; evidence: string[] }[];
   weaknesses?: { title: string; category: string; description: string; impact: 'high' | 'medium' | 'low'; score: number; evidence: string[] }[];
   contentPillars?: { name: string; description: string; score: number; topics: string[]; authorityScore: number; engagementPotential: number; careerAlignment: number }[];
-  brandDNA?: {
-    positioning?: string;
-    archetype?: string;
-    targetAudience?: string;
-    uniqueValueProposition?: string;
-  };
+  brandDNA?: any;
+  writingDNA?: any;
+  careerBlueprint?: any;
+  strategy90Days?: any;
   quickWins?: { action: string; impact: string; effort: string; category: string }[];
   opportunities?: { title: string; description: string; score: number; pillar: string; effort: string; timeframe: string }[];
   generatedAt?: string;
@@ -429,6 +413,104 @@ export default function IntelligenceReportPage() {
             {positioning || 'Complete your analysis to see a summary of your profile.'}
           </p>
         </GlassCard>
+      </StaggerItem>
+
+      {/* Voice Profile + Career Direction */}
+      <StaggerItem>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Voice Profile */}
+          <GlassCard>
+            <GlassCardHeader title="Voice Profile" description="Your unique writing and communication style" />
+            <div className="space-y-4">
+              {report.writingDNA ? (
+                <>
+                  {report.writingDNA.tone && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Tone</p>
+                      <p className="text-sm text-surface-200">{typeof report.writingDNA.tone === 'string' ? report.writingDNA.tone : report.writingDNA.tone.primary || JSON.stringify(report.writingDNA.tone)}</p>
+                    </div>
+                  )}
+                  {report.writingDNA.style && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Writing Style</p>
+                      <p className="text-sm text-surface-200">{typeof report.writingDNA.style === 'string' ? report.writingDNA.style : report.writingDNA.style.primary || JSON.stringify(report.writingDNA.style)}</p>
+                    </div>
+                  )}
+                  {report.writingDNA.storytelling && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Storytelling Pattern</p>
+                      <p className="text-sm text-surface-200">{typeof report.writingDNA.storytelling === 'string' ? report.writingDNA.storytelling : report.writingDNA.storytelling.pattern || JSON.stringify(report.writingDNA.storytelling)}</p>
+                    </div>
+                  )}
+                  {report.writingDNA.vocabulary && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Vocabulary</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Array.isArray(report.writingDNA.vocabulary) ? report.writingDNA.vocabulary : report.writingDNA.vocabulary.keywords || []).slice(0, 8).map((w: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.05] text-xs text-surface-300">{w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-surface-500">Voice profile will be generated after onboarding analysis.</p>
+              )}
+            </div>
+          </GlassCard>
+
+          {/* Career Direction */}
+          <GlassCard>
+            <GlassCardHeader title="Career Direction" description="Career goals and growth opportunities" />
+            <div className="space-y-4">
+              {report.careerBlueprint ? (
+                <>
+                  {report.careerBlueprint.targetRole && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Target Role</p>
+                      <p className="text-sm text-surface-200">{report.careerBlueprint.targetRole}</p>
+                    </div>
+                  )}
+                  {report.careerBlueprint.careerGoals?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Career Goals</p>
+                      <div className="space-y-1">
+                        {report.careerBlueprint.careerGoals.slice(0, 4).map((g: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2 text-sm text-surface-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                            {g}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {report.careerBlueprint.skillGaps?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Skill Gaps</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {report.careerBlueprint.skillGaps.slice(0, 5).map((s: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-xs text-amber-400 border border-amber-500/20">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {report.careerBlueprint.suggestedTopics?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Suggested Content Topics</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {report.careerBlueprint.suggestedTopics.slice(0, 5).map((t: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-brand-500/10 text-xs text-brand-400 border border-brand-500/20">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-surface-500">Career direction will be generated after onboarding analysis.</p>
+              )}
+            </div>
+          </GlassCard>
+        </div>
       </StaggerItem>
 
       <StaggerItem>

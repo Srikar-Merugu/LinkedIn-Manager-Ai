@@ -6,10 +6,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import {
-  MessageCircle, Send, Sparkles, Lightbulb, Calendar, Target,
+  MessageCircle, Send, Sparkles, Lightbulb, Calendar,
   TrendingUp, Zap, CheckCircle2, XCircle, Clock, AlertCircle,
   ThumbsUp, Bookmark, ChevronRight, Bot, User, RefreshCw,
-  Trash2, List, BarChart3, Compass,
+  Trash2, List, PenSquare,
 } from 'lucide-react';
 
 interface Message {
@@ -198,18 +198,18 @@ export default function AssistantPage() {
 
   const suggestedQuestions = [
     'What should I post today?',
+    'Give me content ideas for this week',
     'Review my content strategy',
-    'Find new opportunities',
-    'How can I build authority?',
-    'Analyze my engagement',
+    'Rewrite this post to sound more like me',
+    'Generate content for my calendar topic',
   ];
 
   const quickActions = [
     { label: 'Generate Post', icon: Sparkles, action: 'generate_post' },
+    { label: 'Content Ideas', icon: Lightbulb, action: 'review_analytics' },
     { label: 'Review Strategy', icon: TrendingUp, action: 'regenerate_strategy' },
-    { label: 'Find Opportunities', icon: Target, action: 'mine_opportunities' },
-    { label: 'Analyze Analytics', icon: BarChart3, action: 'review_analytics' },
-    { label: 'Review Profile', icon: Compass, action: 'update_profile' },
+    { label: 'Rewrite Post', icon: PenSquare, action: 'update_profile' },
+    { label: 'Calendar Topic', icon: Calendar, action: 'view_calendar' },
   ];
 
   const activeRecs = recommendations.filter((r: any) => r.status === 'active');
@@ -224,8 +224,8 @@ export default function AssistantPage() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-surface-100">AI Brand Copilot</h2>
-              <p className="text-[10px] text-surface-500">Personal Brand Manager</p>
+              <h2 className="text-sm font-semibold text-surface-100">AI Content Coach</h2>
+              <p className="text-[10px] text-surface-500">LinkedIn Consistency Coach</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -267,10 +267,10 @@ export default function AssistantPage() {
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Bot className="w-16 h-16 text-surface-600 mb-4" />
-              <h3 className="text-lg font-semibold text-surface-200 mb-2">Your Brand Copilot is Ready</h3>
+              <h3 className="text-lg font-semibold text-surface-200 mb-2">Your Content Coach is Ready</h3>
               <p className="text-sm text-surface-500 max-w-md mb-6">
-                I have access to your brand identity, content strategy, career goals, and analytics.
-                Ask me anything about your personal brand.
+                I have access to your LinkedIn analysis, voice profile, content strategy, and calendar.
+                Ask me anything about creating consistent, personalized content.
               </p>
 
               {showSuggestions && (
@@ -350,7 +350,7 @@ export default function AssistantPage() {
         <div className="p-4 border-t border-white/5">
           <div className="flex gap-3">
             <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
-              placeholder="Ask me anything about your personal brand..."
+              placeholder="Ask me anything about your LinkedIn content..."
               rows={1}
               className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-surface-200 placeholder:text-surface-600 resize-none focus:outline-none focus:border-brand-500/30"
             />
