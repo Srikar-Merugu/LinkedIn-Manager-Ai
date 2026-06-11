@@ -73,7 +73,14 @@ export function createContentGenerationRouter(): Router {
             targetRoles: [],
           };
         }
-        if (!input.careerGoals) input.careerGoals = (report as any).careerBlueprint?.careerGoals || [];
+        if (!input.careerGoals) {
+          const goals = (report as any).careerBlueprint?.careerGoals || [];
+          input.careerGoals = goals.map((g: any) =>
+            typeof g === 'string'
+              ? { type: g, target: g, description: g, timeline: '3-6 months' }
+              : g
+          );
+        }
         if (!input.currentRole) input.currentRole = (report as any).resumeAnalysis?.currentRole || '';
       }
 

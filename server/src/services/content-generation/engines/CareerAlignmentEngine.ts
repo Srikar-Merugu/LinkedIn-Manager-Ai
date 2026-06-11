@@ -67,9 +67,9 @@ export class CareerAlignmentEngine {
     let score = 50;
 
     const goalTerms = [
-      ...goal.target.toLowerCase().split(' '),
-      ...goal.description.toLowerCase().split(' '),
-      goal.type.toLowerCase(),
+      ...(goal.target || '').toLowerCase().split(' '),
+      ...(goal.description || '').toLowerCase().split(' '),
+      (goal.type || '').toLowerCase(),
     ];
 
     const matched = goalTerms.filter(t => t.length > 3 && content_lower.includes(t)).length;
