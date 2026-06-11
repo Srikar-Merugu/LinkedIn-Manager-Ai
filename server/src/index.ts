@@ -32,6 +32,8 @@ import { createContentGenerationRouter } from './routes/content-generation';
 import { createAIManagerRouter } from './routes/ai-manager';
 import { createAnalyticsRouter } from './routes/analytics';
 import { createAnalysisReportRouter } from './routes/analysis-report';
+import { createLinkedInPublishingRouter } from './routes/linkedin-publishing';
+import { autoPublisher } from './services/scheduler/AutoPublisher';
 import { apiLimiter, authLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
@@ -113,6 +115,7 @@ export async function createApp(): Promise<express.Express> {
   app.use('/api/ai-manager', createAIManagerRouter());
   app.use('/api/analytics', createAnalyticsRouter());
   app.use('/api/report', createAnalysisReportRouter());
+  app.use('/api/publishing', createLinkedInPublishingRouter());
 
   app.get('/api/health', (_req, res) => {
     res.json({
@@ -139,6 +142,9 @@ async function bootstrap(): Promise<void> {
     logger.info(`LinkedIn Intelligence Engine running on port ${env.port}`);
     logger.info(`Environment: ${env.nodeEnv}`);
     logger.info(`Health check: http://localhost:${env.port}/api/health`);
+
+    // Start auto-publisher scheduler
+    autoPublisher.start();
   });
 }
 

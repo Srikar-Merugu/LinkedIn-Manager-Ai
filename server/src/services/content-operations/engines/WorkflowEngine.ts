@@ -4,7 +4,7 @@ import { QueueItem } from '../../../models/content-operations/QueueItem';
 
 const logger = pino();
 
-type Stage = 'idea' | 'planned' | 'draft_generated' | 'ready' | 'approved' | 'scheduled' | 'published' | 'analyzed' | 'archived';
+type Stage = 'idea' | 'planned' | 'draft_generated' | 'ready' | 'approved' | 'scheduled' | 'published' | 'failed' | 'analyzed' | 'archived';
 
 const VALID_TRANSITIONS: Record<Stage, Stage[]> = {
   idea: ['planned'],
@@ -12,8 +12,9 @@ const VALID_TRANSITIONS: Record<Stage, Stage[]> = {
   draft_generated: ['ready', 'planned'],
   ready: ['approved', 'draft_generated'],
   approved: ['scheduled', 'ready'],
-  scheduled: ['published', 'approved'],
+  scheduled: ['published', 'approved', 'failed'],
   published: ['analyzed', 'archived'],
+  failed: ['scheduled', 'draft_generated'],
   analyzed: ['archived', 'planned'],
   archived: ['idea'],
 };

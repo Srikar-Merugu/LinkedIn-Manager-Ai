@@ -7,7 +7,7 @@ export interface IQueueItem extends Document {
   calendarEntryId?: mongoose.Types.ObjectId;
   strategyId?: mongoose.Types.ObjectId;
   version: number;
-  stage: 'idea' | 'planned' | 'draft_generated' | 'ready' | 'approved' | 'scheduled' | 'published' | 'analyzed' | 'archived';
+  stage: 'idea' | 'planned' | 'draft_generated' | 'ready' | 'approved' | 'scheduled' | 'published' | 'failed' | 'analyzed' | 'archived';
   stageHistory: Array<{ stage: string; enteredAt: Date; triggeredBy: string }>;
   priority: number;
   priorityReasoning: string;
@@ -23,6 +23,8 @@ export interface IQueueItem extends Document {
   draftGeneratedAt?: Date;
   publishedAt?: Date;
   analyzedAt?: Date;
+  linkedinPostId?: string;
+  lastError?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,7 +38,7 @@ const QueueItemSchema = new Schema<IQueueItem>({
   version: { type: Number, default: 1 },
   stage: {
     type: String,
-    enum: ['idea', 'planned', 'draft_generated', 'ready', 'approved', 'scheduled', 'published', 'analyzed', 'archived'],
+    enum: ['idea', 'planned', 'draft_generated', 'ready', 'approved', 'scheduled', 'published', 'failed', 'analyzed', 'archived'],
     default: 'idea',
     index: true,
   },
@@ -59,6 +61,8 @@ const QueueItemSchema = new Schema<IQueueItem>({
   draftGeneratedAt: Date,
   publishedAt: Date,
   analyzedAt: Date,
+  linkedinPostId: { type: String, default: '' },
+  lastError: { type: String, default: '' },
 }, {
   timestamps: true,
   collection: 'content_queue',
@@ -66,6 +70,7 @@ const QueueItemSchema = new Schema<IQueueItem>({
 
 QueueItemSchema.index({ userId: 1, stage: 1, priority: -1 });
 QueueItemSchema.index({ userId: 1, automationMode: 1 });
+QueueItemSchema.index({ stage: 1, scheduledAt: 1 });
 
 export const QueueItem: Model<IQueueItem> = mongoose.model<IQueueItem>('QueueItem', QueueItemSchema);
 export default QueueItem;

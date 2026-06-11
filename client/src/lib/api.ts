@@ -387,6 +387,50 @@ export const api = {
       fetchAPI<any>(`/content-operations/status/${userId}`),
   },
 
+  publishing: {
+    getLinkedInUrl: () =>
+      fetchAPI<{ url: string }>('/publishing/linkedin/connect'),
+
+    getLinkedInStatus: () =>
+      fetchAPI<{ connected: boolean; profile?: any; error?: string }>('/publishing/linkedin/status'),
+
+    disconnectLinkedIn: () =>
+      fetchAPI<{ disconnected: boolean }>('/publishing/linkedin/disconnect', { method: 'POST' }),
+
+    approveItem: (itemId: string, scheduledAt?: string) =>
+      fetchAPI<any>(`/publishing/queue/${itemId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduledAt }),
+      }),
+
+    bulkApprove: (itemIds: string[], scheduledAt?: string) =>
+      fetchAPI<any>('/publishing/queue/bulk-approve', {
+        method: 'POST',
+        body: JSON.stringify({ itemIds, scheduledAt }),
+      }),
+
+    publishNow: (itemId: string) =>
+      fetchAPI<{ success: boolean; linkedinPostId?: string; error?: string }>(
+        `/publishing/queue/${itemId}/publish-now`,
+        { method: 'POST' }
+      ),
+
+    retryFailed: (itemId: string) =>
+      fetchAPI<{ success: boolean; error?: string }>(
+        `/publishing/queue/${itemId}/retry`,
+        { method: 'POST' }
+      ),
+
+    getStatus: () =>
+      fetchAPI<{
+        scheduledCount: number;
+        publishedCount: number;
+        failedCount: number;
+        nextScheduledAt: string | null;
+        schedulerRunning: boolean;
+      }>('/publishing/publisher/status'),
+  },
+
   opportunity: {
     mine: (userId: string, source?: string) =>
       fetchAPI<any>('/opportunity/mine', { method: 'POST', body: JSON.stringify({ userId, source }) }),
