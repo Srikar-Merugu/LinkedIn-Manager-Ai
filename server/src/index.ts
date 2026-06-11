@@ -33,6 +33,7 @@ import { createAIManagerRouter } from './routes/ai-manager';
 import { createAnalyticsRouter } from './routes/analytics';
 import { createAnalysisReportRouter } from './routes/analysis-report';
 import { createLinkedInPublishingRouter } from './routes/linkedin-publishing';
+import { createGoogleSheetsRouter } from './routes/google-sheets';
 import { autoPublisher } from './services/scheduler/AutoPublisher';
 import { apiLimiter, authLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -116,6 +117,7 @@ export async function createApp(): Promise<express.Express> {
   app.use('/api/analytics', createAnalyticsRouter());
   app.use('/api/report', createAnalysisReportRouter());
   app.use('/api/publishing', createLinkedInPublishingRouter());
+  app.use('/api/google', createGoogleSheetsRouter());
 
   app.get('/api/health', (_req, res) => {
     res.json({

@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import {
   Send, CheckCircle2, Clock, AlertTriangle,
   Loader2, FileText, Eye, ArrowRight, Link2,
-  Calendar, Play, RefreshCw, Unlink, Zap,
+  Calendar, Play, RefreshCw, Unlink, Zap, Timer,
 } from 'lucide-react';
 
 type QueueStatus = 'draft_generated' | 'ready' | 'scheduled' | 'published' | 'failed';
@@ -62,6 +62,10 @@ export default function PublishingCenterPage() {
   const [linkedinStatus, setLinkedinStatus] = useState<LinkedInStatus | null>(null);
   const [publisherStatus, setPublisherStatus] = useState<PublisherStatus | null>(null);
   const [connectingLinkedin, setConnectingLinkedin] = useState(false);
+
+  const [schedulingItem, setSchedulingItem] = useState<QueueItem | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
 
   const userId = user?.id || '';
 
@@ -154,6 +158,29 @@ export default function PublishingCenterPage() {
       await loadQueue();
     } catch { /* ignore */ }
     setUpdating(null);
+  }
+
+  async function handleSchedule() {
+    if (!schedulingItem || !scheduleDate) return;
+    setUpdating(schedulingItem._id);
+    try {
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+      await api.publishing.approveItem(schedulingItem._id, scheduledAt);
+      await loadQueue();
+      setSchedulingItem(null);
+      setScheduleDate('');
+      setScheduleTime('09:00');
+    } catch { /* ignore */ }
+    setUpdating(null);
+  }
+
+  function getSchedulingDefaults() {
+    const now = new Date();
+    now.setDate(now.getDate() + 1);
+    now.setHours(9, 0, 0, 0);
+    const date = now.toISOString().split('T')[0];
+    setScheduleDate(date);
+    setScheduleTime('09:00');
   }
 
   const filteredItems = activeFilter === 'all' ? items : items.filter(i => i.stage === activeFilter);
@@ -362,12 +389,18 @@ export default function PublishingCenterPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Draft/Ready -> Approve */}
+                  {/* Draft/Ready -> Approve + Schedule */}
                   {(item.stage === 'draft_generated' || item.stage === 'ready') && linkedinStatus?.connected && (
-                    <button onClick={() => handleApprove(item)} disabled={updating === item._id}
-                      className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-xs font-medium hover:bg-purple-500/20 disabled:opacity-50">
-                      {updating === item._id ? '...' : 'Approve'}
-                    </button>
+                    <>
+                      <button onClick={() => handleApprove(item)} disabled={updating === item._id}
+                        className="px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-xs font-medium hover:bg-purple-500/20 disabled:opacity-50">
+                        {updating === item._id ? '...' : 'Approve'}
+                      </button>
+                      <button onClick={() => { setSchedulingItem(item); getSchedulingDefaults(); }}
+                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-medium hover:bg-blue-500/20">
+                        <Timer className="w-3 h-3 inline mr-1" />Schedule
+                      </button>
+                    </>
                   )}
                   {/* Scheduled -> Publish Now */}
                   {item.stage === 'scheduled' && linkedinStatus?.connected && (
@@ -439,10 +472,16 @@ export default function PublishingCenterPage() {
             </div>
             <div className="flex gap-2 mt-4 pt-4 border-t border-white/5">
               {(selectedItem.stage === 'draft_generated' || selectedItem.stage === 'ready') && linkedinStatus?.connected && (
-                <button onClick={() => { handleApprove(selectedItem); setSelectedItem(null); }}
-                  className="px-4 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium hover:bg-purple-600">
-                  Approve & Schedule
-                </button>
+                <>
+                  <button onClick={() => { handleApprove(selectedItem); setSelectedItem(null); }}
+                    className="px-4 py-2 rounded-xl bg-purple-500 text-white text-sm font-medium hover:bg-purple-600">
+                    Approve
+                  </button>
+                  <button onClick={() => { setSelectedItem(null); setSchedulingItem(selectedItem); getSchedulingDefaults(); }}
+                    className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600">
+                    <Timer className="w-4 h-4 inline mr-1" />Schedule
+                  </button>
+                </>
               )}
               {selectedItem.stage === 'scheduled' && linkedinStatus?.connected && (
                 <button onClick={() => { handlePublishNow(selectedItem); setSelectedItem(null); }}
@@ -456,6 +495,71 @@ export default function PublishingCenterPage() {
                   Retry
                 </button>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Schedule Post Modal */}
+      {schedulingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setSchedulingItem(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="glass-card rounded-2xl p-6 border border-white/5 max-w-md w-full mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-surface-100 flex items-center gap-2">
+                <Timer className="w-5 h-5 text-blue-400" />
+                Schedule Post
+              </h3>
+              <button onClick={() => setSchedulingItem(null)} className="text-surface-500 hover:text-surface-300">✕</button>
+            </div>
+
+            <div className="mb-4 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+              <p className="text-sm font-medium text-surface-200 truncate">{schedulingItem.title || schedulingItem.topic}</p>
+              {schedulingItem.hook && <p className="text-xs text-surface-500 truncate mt-1">{schedulingItem.hook}</p>}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-surface-400 mb-1.5">Publish Date</label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={e => setScheduleDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-surface-200 text-sm focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-surface-400 mb-1.5">Publish Time</label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={e => setScheduleTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-surface-200 text-sm focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                <p className="text-xs text-blue-400">
+                  Will publish on {scheduleDate ? new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '...'} at {scheduleTime || '...'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setSchedulingItem(null)}
+                className="flex-1 px-4 py-2 rounded-xl bg-white/5 text-surface-400 text-sm font-medium hover:bg-white/10">
+                Cancel
+              </button>
+              <button onClick={handleSchedule} disabled={!scheduleDate || updating === schedulingItem._id}
+                className="flex-1 px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                {updating === schedulingItem._id ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Scheduling...</>
+                ) : (
+                  <><Timer className="w-4 h-4" /> Schedule Post</>
+                )}
+              </button>
             </div>
           </motion.div>
         </div>

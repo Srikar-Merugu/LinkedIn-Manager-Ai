@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import {
   CalendarDays, Download, ChevronLeft, ChevronRight,
-  AlertTriangle, Loader2,
+  AlertTriangle, Loader2, Link2, Unlink, ExternalLink,
 } from 'lucide-react';
 
 type ViewMode = 'month' | 'list';
@@ -21,6 +21,7 @@ interface CalendarEntry {
   contentType: string;
   status: 'draft' | 'scheduled' | 'published' | 'idea';
   source: string;
+  overallScore?: number;
 }
 
 export default function ContentCalendarPage() {
@@ -32,6 +33,10 @@ export default function ContentCalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [syncing, setSyncing] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null);
+
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [sheetsUrl, setSheetsUrl] = useState<string | null>(null);
 
   const userId = user?.id || '';
 
@@ -51,10 +56,59 @@ export default function ContentCalendarPage() {
 
   useEffect(() => { loadCalendar(); }, [loadCalendar]);
 
+  const checkGoogle = useCallback(async () => {
+    try {
+      const status = await api.google.getStatus();
+      setGoogleConnected(status.connected);
+    } catch {
+      setGoogleConnected(false);
+    }
+  }, []);
+
+  useEffect(() => { checkGoogle(); }, [checkGoogle]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'connected') {
+      checkGoogle();
+      window.history.replaceState({}, '', '/dashboard/content-calendar');
+    }
+  }, [checkGoogle]);
+
+  async function handleConnectGoogle() {
+    setConnectingGoogle(true);
+    try {
+      const { url } = await api.google.getConnectUrl();
+      window.location.href = url;
+    } catch {
+      setConnectingGoogle(false);
+    }
+  }
+
+  async function handleDisconnectGoogle() {
+    await api.google.disconnect();
+    setGoogleConnected(false);
+    setSheetsUrl(null);
+  }
+
   async function handleSyncToSheets() {
+    if (!googleConnected) {
+      await handleConnectGoogle();
+      return;
+    }
     setSyncing(true);
     try {
-      await api.contentOperations.syncToSheets(userId);
+      const exportEntries = entries.map(e => ({
+        date: e.date,
+        topic: e.topic,
+        hook: e.hook,
+        contentType: e.contentType,
+        status: e.status,
+        pillarName: e.pillarName,
+        overallScore: e.overallScore,
+      }));
+      const result = await api.google.exportToSheets(exportEntries);
+      setSheetsUrl(result.spreadsheetUrl);
     } catch { /* ignore */ }
     setSyncing(false);
   }
@@ -145,11 +199,34 @@ export default function ContentCalendarPage() {
               List
             </button>
           </div>
-          <button onClick={handleSyncToSheets} disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 disabled:opacity-50">
-            <Download className={cn('w-4 h-4', syncing && 'animate-spin')} />
-            {syncing ? 'Exporting...' : 'Export to Sheets'}
-          </button>
+          {googleConnected ? (
+            <div className="flex items-center gap-2">
+              {sheetsUrl && (
+                <a href={sheetsUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-green-500/10 text-green-400 text-xs font-medium hover:bg-green-500/20">
+                  <ExternalLink className="w-3 h-3" /> Open Sheet
+                </a>
+              )}
+              <button onClick={handleSyncToSheets} disabled={syncing || entries.length === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 disabled:opacity-50">
+                <Download className={cn('w-4 h-4', syncing && 'animate-spin')} />
+                {syncing ? 'Exporting...' : 'Export to Sheets'}
+              </button>
+              <button onClick={handleDisconnectGoogle}
+                className="p-2 rounded-lg hover:bg-red-500/10 text-surface-400 hover:text-red-400">
+                <Unlink className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleConnectGoogle} disabled={connectingGoogle}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50">
+              {connectingGoogle ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Connecting...</>
+              ) : (
+                <><Link2 className="w-4 h-4" /> Connect Google Sheets</>
+              )}
+            </button>
+          )}
         </div>
       </motion.div>
 

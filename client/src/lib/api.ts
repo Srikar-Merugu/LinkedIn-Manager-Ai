@@ -431,6 +431,23 @@ export const api = {
       }>('/publishing/publisher/status'),
   },
 
+  google: {
+    getConnectUrl: () =>
+      fetchAPI<{ url: string }>('/google/connect'),
+
+    getStatus: () =>
+      fetchAPI<{ connected: boolean; email?: string }>('/google/status'),
+
+    disconnect: () =>
+      fetchAPI<{ disconnected: boolean }>('/google/disconnect', { method: 'POST' }),
+
+    exportToSheets: (entries: any[]) =>
+      fetchAPI<{ spreadsheetId: string; spreadsheetUrl: string }>(
+        '/google/export',
+        { method: 'POST', body: JSON.stringify({ entries }) }
+      ),
+  },
+
   opportunity: {
     mine: (userId: string, source?: string) =>
       fetchAPI<any>('/opportunity/mine', { method: 'POST', body: JSON.stringify({ userId, source }) }),

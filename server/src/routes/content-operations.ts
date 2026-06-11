@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import pino from 'pino';
 import { contentOperatingSystemOrchestrator } from '../services/content-operations/ContentOperatingSystemOrchestrator';
 import { ContentCalendar } from '../models/strategy/ContentCalendar';
+import { Post } from '../models/content-generation/Post';
 import { QueueItem } from '../models/content-operations/QueueItem';
 import { PublishingMode } from '../models/content-operations/PublishingMode';
 import { CalendarSnapshot } from '../models/content-operations/CalendarSnapshot';
@@ -55,11 +56,35 @@ export function createContentOperationsRouter(): Router {
       if (status) filter.status = status;
       if (pillar) filter.pillarName = pillar;
 
-      let query = ContentCalendar.find(filter).sort({ date: 1 });
-      if (limit) query = query.limit(parseInt(limit as string));
+      const calendarQuery = ContentCalendar.find(filter).sort({ date: 1 });
+      const calendarEntries = await (limit ? calendarQuery.limit(parseInt(limit as string)) : calendarQuery).lean();
 
-      const entries = await query.lean();
-      res.json(entries);
+      const postFilter: any = { userId: new mongoose.Types.ObjectId(userId) };
+      if (startDate || endDate) {
+        postFilter.createdAt = {};
+        if (startDate) postFilter.createdAt.$gte = new Date(startDate as string);
+        if (endDate) postFilter.createdAt.$lte = new Date(endDate as string);
+      }
+
+      const posts = await Post.find(postFilter).sort({ createdAt: -1 }).limit(200).lean();
+
+      const postEntries = posts.map(post => ({
+        _id: post._id,
+        date: post.scheduleDate || post.publishedAt || post.createdAt,
+        pillarName: post.tags?.[0] || 'General',
+        topic: post.title || 'Untitled',
+        hook: post.hook || '',
+        contentType: post.contentType || 'educational',
+        status: post.status === 'published' ? 'published' : post.status === 'scheduled' ? 'scheduled' : post.status === 'approved' ? 'scheduled' : 'draft',
+        source: 'posts',
+        overallScore: post.overallScore,
+      }));
+
+      const merged = [...calendarEntries, ...postEntries].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      res.json(merged);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
