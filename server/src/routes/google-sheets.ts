@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import pino from 'pino';
 import { googleSheetsService } from '../services/google/GoogleSheetsService';
 import { getAuthenticatedUserId } from '../utils/auth';
+import { Post } from '../models/content-generation/Post';
+import { QueueItem } from '../models/content-operations/QueueItem';
 
 const logger = pino();
 
@@ -25,12 +27,10 @@ function getUserId(req: Request): string | null {
 export function createGoogleSheetsRouter(): Router {
   const router = Router();
 
-  /* ───────── Get Google OAuth URL ───────── */
   router.get('/connect', (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-
       const url = googleSheetsService.getAuthUrl(userId);
       res.json({ url });
     } catch (error: any) {
@@ -39,27 +39,18 @@ export function createGoogleSheetsRouter(): Router {
     }
   });
 
-  /* ───────── Google OAuth Callback ───────── */
   router.get('/callback', async (req: Request, res: Response) => {
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     try {
       const { code, state, error: googleError } = req.query;
-
-      if (googleError) {
-        return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=${encodeURIComponent(String(googleError))}`);
-      }
-
-      if (!code || !state) {
-        return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=missing_parameters`);
-      }
+      if (googleError) return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=${encodeURIComponent(String(googleError))}`);
+      if (!code || !state) return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=missing_parameters`);
 
       let userId: string;
       try {
         const stateData = JSON.parse(String(state));
         userId = stateData.userId;
-      } catch {
-        return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=invalid_state`);
-      }
+      } catch { return res.redirect(`${clientUrl}/dashboard/content-calendar?google=error&reason=invalid_state`); }
 
       const tokens = await googleSheetsService.exchangeCode(String(code));
 
@@ -84,28 +75,21 @@ export function createGoogleSheetsRouter(): Router {
     }
   });
 
-  /* ───────── Check Connection Status ───────── */
   router.get('/status', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-
       const connection = await GoogleConnection.findOne({ userId }).lean() as any;
-      res.json({
-        connected: connection?.isConnected || false,
-        email: connection?.email || null,
-      });
+      res.json({ connected: connection?.isConnected || false, email: connection?.email || null });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  /* ───────── Disconnect ───────── */
   router.post('/disconnect', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-
       await GoogleConnection.findOneAndUpdate({ userId }, { isConnected: false });
       res.json({ disconnected: true });
     } catch (error: any) {
@@ -113,20 +97,10 @@ export function createGoogleSheetsRouter(): Router {
     }
   });
 
-  /* ───────── Export Calendar to Google Sheets ───────── */
   router.post('/export', async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
-
-      const { entries } = req.body;
-      if (!entries || !Array.isArray(entries)) {
-        return res.status(400).json({ error: 'entries array required' });
-      }
-
-      if (entries.length === 0) {
-        return res.status(400).json({ error: 'No calendar entries to export. Generate content first.' });
-      }
 
       const connection = await GoogleConnection.findOne({ userId }) as any;
       if (!connection || !connection.isConnected) {
@@ -143,14 +117,22 @@ export function createGoogleSheetsRouter(): Router {
         );
       }
 
-      const result = await googleSheetsService.exportCalendarData(accessToken, entries);
+      const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      await GoogleConnection.findOneAndUpdate(
-        { userId },
-        { lastUsedAt: new Date() }
-      );
+      const [posts, queueItems] = await Promise.all([
+        Post.find({ userId: userObjectId }).sort({ createdAt: -1 }).limit(200).lean(),
+        QueueItem.find({ userId: userObjectId }).sort({ createdAt: -1 }).limit(100).lean(),
+      ]);
 
-      logger.info({ userId, spreadsheetId: result.spreadsheetId }, 'Calendar exported to Google Sheets');
+      const result = await googleSheetsService.exportAllData(accessToken, {
+        posts,
+        queueItems,
+        analytics: [],
+      });
+
+      await GoogleConnection.findOneAndUpdate({ userId }, { lastUsedAt: new Date() });
+
+      logger.info({ userId, spreadsheetId: result.spreadsheetId, posts: posts.length, queue: queueItems.length }, 'Full export to Google Sheets');
       res.json(result);
     } catch (error: any) {
       logger.error({ error: error.message, stack: error.stack }, 'Failed to export to Google Sheets');

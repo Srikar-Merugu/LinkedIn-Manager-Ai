@@ -4,6 +4,10 @@ export interface IQueueItem extends Document {
   userId: mongoose.Types.ObjectId;
   postId?: mongoose.Types.ObjectId;
   title?: string;
+  hook?: string;
+  topic?: string;
+  contentType?: string;
+  overallScore?: number;
   calendarEntryId?: mongoose.Types.ObjectId;
   strategyId?: mongoose.Types.ObjectId;
   version: number;
@@ -33,6 +37,10 @@ const QueueItemSchema = new Schema<IQueueItem>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   postId: { type: Schema.Types.ObjectId, ref: 'Post' },
   title: { type: String, default: '' },
+  hook: { type: String, default: '' },
+  topic: { type: String, default: '' },
+  contentType: { type: String, default: '' },
+  overallScore: { type: Number, default: 0 },
   calendarEntryId: { type: Schema.Types.ObjectId, ref: 'ContentCalendar' },
   strategyId: { type: Schema.Types.ObjectId, ref: 'ContentStrategyIntelligence' },
   version: { type: Number, default: 1 },

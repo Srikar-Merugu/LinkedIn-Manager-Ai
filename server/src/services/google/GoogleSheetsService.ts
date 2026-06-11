@@ -9,6 +9,12 @@ interface GoogleTokens {
   expiresAt: Date;
 }
 
+export interface ExportData {
+  posts: any[];
+  queueItems: any[];
+  analytics: any[];
+}
+
 export class GoogleSheetsService {
   private static instance: GoogleSheetsService;
 
@@ -90,7 +96,7 @@ export class GoogleSheetsService {
     };
   }
 
-  async createSpreadsheet(accessToken: string, title: string): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
+  async createSpreadsheet(accessToken: string, title: string, sheetNames: string[]): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
     const response = await axios.post(
       'https://sheets.googleapis.com/v4/spreadsheets',
       {
@@ -99,6 +105,9 @@ export class GoogleSheetsService {
           locale: 'en_US',
           timeZone: 'America/New_York',
         },
+        sheets: sheetNames.map(name => ({
+          properties: { title: name },
+        })),
       },
       {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -127,6 +136,8 @@ export class GoogleSheetsService {
     sheetName: string,
     rows: any[][]
   ): Promise<void> {
+    if (rows.length === 0) return;
+
     await axios.post(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}:append`,
       {
@@ -135,7 +146,7 @@ export class GoogleSheetsService {
       },
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-        params: { valueInputOption: 'USER_ENTERED' },
+        params: { valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS' },
       }
     );
   }
@@ -173,18 +184,26 @@ export class GoogleSheetsService {
             repeatCell: {
               range: {
                 sheetId,
-                startRowIndex: 1,
-                endRowIndex: 2,
+                startRowIndex: 0,
+                endRowIndex: 1,
                 startColumnIndex: 0,
                 endColumnIndex: columnCount,
               },
               cell: {
                 userEnteredFormat: {
-                  backgroundColor: { red: 0.2, green: 0.4, blue: 0.8 },
-                  textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true },
+                  backgroundColor: { red: 0.13, green: 0.35, blue: 0.55 },
+                  textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 11 },
+                  horizontalAlignment: 'CENTER',
+                  padding: { top: 8, bottom: 8, left: 6, right: 6 },
                 },
               },
-              fields: 'userEnteredFormat(backgroundColor,textFormat)',
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,padding)',
+            },
+          },
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+              fields: 'gridProperties.frozenRowCount',
             },
           },
         ],
@@ -193,39 +212,129 @@ export class GoogleSheetsService {
     );
   }
 
-  async exportCalendarData(
+  async resizeColumns(
     accessToken: string,
-    entries: any[]
+    spreadsheetId: string,
+    sheetId: number,
+    columnWidths: number[]
+  ): Promise<void> {
+    const requests = columnWidths.map((width, i) => ({
+      updateDimensionProperties: {
+        range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 },
+        properties: { pixelSize: width },
+        fields: 'pixelSize',
+      },
+    }));
+
+    await axios.post(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      { requests },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+  }
+
+  async exportAllData(
+    accessToken: string,
+    data: ExportData
   ): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
     const now = new Date();
-    const title = `LinkedIn Content Calendar - ${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    const title = `Content Operations - ${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    const sheetNames = ['Content Calendar', 'Post Content', 'Publishing Queue', 'Analytics'];
 
-    const { spreadsheetId, spreadsheetUrl } = await this.createSpreadsheet(accessToken, title);
+    const { spreadsheetId, spreadsheetUrl } = await this.createSpreadsheet(accessToken, title, sheetNames);
 
-    const headers = ['Date', 'Topic', 'Hook', 'Content Type', 'Status', 'Pillar', 'Score'];
+    const calHeaders = ['Date', 'Time', 'Topic', 'Content Type', 'Pillar', 'Status', 'Scheduled Time', 'Score'];
+    const postHeaders = ['Post Title', 'Full LinkedIn Post', 'Hook', 'CTA', 'Content Type', 'Hashtags', 'Score'];
+    const queueHeaders = ['Post Title', 'Scheduled Time', 'Current Status', 'LinkedIn Status', 'Publish Result', 'Error'];
+    const analyticsHeaders = ['Post Title', 'Likes', 'Comments', 'Shares', 'Impressions', 'Engagement Rate', 'Status'];
 
-    const rows = entries.map(entry => [
-      entry.date ? new Date(entry.date).toLocaleDateString() : '',
-      entry.topic || entry.title || '',
-      entry.hook || '',
-      entry.contentType || '',
-      entry.status || '',
-      entry.pillarName || '',
-      entry.overallScore ? String(entry.overallScore) : '',
+    await Promise.all([
+      this.writeHeaders(accessToken, spreadsheetId, 'Content Calendar', calHeaders),
+      this.writeHeaders(accessToken, spreadsheetId, 'Post Content', postHeaders),
+      this.writeHeaders(accessToken, spreadsheetId, 'Publishing Queue', queueHeaders),
+      this.writeHeaders(accessToken, spreadsheetId, 'Analytics', analyticsHeaders),
     ]);
 
-    await this.writeHeaders(accessToken, spreadsheetId, 'Sheet1', headers);
-    if (rows.length > 0) {
-      await this.appendRows(accessToken, spreadsheetId, 'Sheet1', rows);
+    const calRows = data.posts.map(post => [
+      post.scheduleDate ? new Date(post.scheduleDate).toLocaleDateString() :
+        post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() :
+          post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '',
+      post.scheduleDate ? new Date(post.scheduleDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+      post.title || '',
+      post.contentType || '',
+      (post.tags && post.tags[0]) || '',
+      post.status || '',
+      post.scheduleDate ? new Date(post.scheduleDate).toLocaleString() : '',
+      post.overallScore ? String(post.overallScore) : '',
+    ]);
+
+    const postRows = data.posts.map(post => [
+      post.title || '',
+      post.fullContent || `${post.hook || ''}\n\n${post.body || ''}\n\n${post.cta || ''}`,
+      post.hook || '',
+      post.cta || '',
+      post.contentType || '',
+      (post.tags || []).join(', '),
+      post.overallScore ? String(post.overallScore) : '',
+    ]);
+
+    const queueRows = data.queueItems.map(item => [
+      item.title || item.topic || '',
+      item.scheduledAt ? new Date(item.scheduledAt).toLocaleString() : '',
+      item.stage || '',
+      item.linkedinPostId ? 'Published' : item.stage === 'failed' ? 'Failed' : 'Pending',
+      item.linkedinPostId || '',
+      item.lastError || '',
+    ]);
+
+    const analyticsRows = data.posts
+      .filter(p => p.status === 'published')
+      .map(post => [
+        post.title || '',
+        '0',
+        '0',
+        '0',
+        '0',
+        '0%',
+        post.status || '',
+      ]);
+
+    const postCount = data.posts.length;
+    const queueCount = data.queueItems.length;
+    const publishedCount = data.posts.filter(p => p.status === 'published').length;
+
+    if (postCount > 0 || queueCount > 0 || publishedCount > 0) {
+      await this.appendRows(accessToken, spreadsheetId, 'Content Calendar', calRows);
+      await this.appendRows(accessToken, spreadsheetId, 'Post Content', postRows);
+      await this.appendRows(accessToken, spreadsheetId, 'Publishing Queue', queueRows);
+      if (analyticsRows.length > 0) {
+        await this.appendRows(accessToken, spreadsheetId, 'Analytics', analyticsRows);
+      }
     }
 
     try {
-      const sheetId = await this.getSheetId(accessToken, spreadsheetId, 'Sheet1');
-      await this.formatHeaderRow(accessToken, spreadsheetId, sheetId, headers.length);
+      const [calSheetId, postSheetId, queueSheetId, analyticsSheetId] = await Promise.all([
+        this.getSheetId(accessToken, spreadsheetId, 'Content Calendar'),
+        this.getSheetId(accessToken, spreadsheetId, 'Post Content'),
+        this.getSheetId(accessToken, spreadsheetId, 'Publishing Queue'),
+        this.getSheetId(accessToken, spreadsheetId, 'Analytics'),
+      ]);
+
+      await Promise.all([
+        this.formatHeaderRow(accessToken, spreadsheetId, calSheetId, calHeaders.length),
+        this.formatHeaderRow(accessToken, spreadsheetId, postSheetId, postHeaders.length),
+        this.formatHeaderRow(accessToken, spreadsheetId, queueSheetId, queueHeaders.length),
+        this.formatHeaderRow(accessToken, spreadsheetId, analyticsSheetId, analyticsHeaders.length),
+        this.resizeColumns(accessToken, spreadsheetId, calSheetId, [100, 80, 250, 120, 100, 90, 140, 60]),
+        this.resizeColumns(accessToken, spreadsheetId, postSheetId, [200, 500, 300, 200, 120, 150, 60]),
+        this.resizeColumns(accessToken, spreadsheetId, queueSheetId, [200, 140, 100, 100, 140, 200]),
+        this.resizeColumns(accessToken, spreadsheetId, analyticsSheetId, [200, 70, 80, 70, 100, 120, 90]),
+      ]);
     } catch (e) {
-      logger.warn('Failed to format header row');
+      logger.warn({ error: (e as Error).message }, 'Failed to format sheets');
     }
 
+    logger.info({ spreadsheetId, posts: postCount, queue: queueCount, published: publishedCount }, 'Full export complete');
     return { spreadsheetId, spreadsheetUrl };
   }
 }

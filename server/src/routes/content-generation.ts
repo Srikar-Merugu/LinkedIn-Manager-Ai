@@ -110,6 +110,10 @@ export function createContentGenerationRouter(): Router {
             priority: 50,
             automationMode: 'manual',
             title: result.post.title,
+            hook: result.post.hook,
+            topic: input.topic || result.post.title,
+            contentType: result.post.contentType,
+            overallScore: result.post.overallScore,
             draftGeneratedAt: new Date(),
             stageHistory: [{ stage: 'draft_generated', enteredAt: new Date(), triggeredBy: 'content_generation' }],
           });

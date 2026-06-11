@@ -441,10 +441,10 @@ export const api = {
     disconnect: () =>
       fetchAPI<{ disconnected: boolean }>('/google/disconnect', { method: 'POST' }),
 
-    exportToSheets: (entries: any[]) =>
+    exportToSheets: (entries?: any[]) =>
       fetchAPI<{ spreadsheetId: string; spreadsheetUrl: string }>(
         '/google/export',
-        { method: 'POST', body: JSON.stringify({ entries }) }
+        { method: 'POST', body: JSON.stringify({ entries: entries || [] }) }
       ),
   },
 
