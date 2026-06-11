@@ -84,12 +84,34 @@ export default function WritingPage() {
     try {
       const texts = [sampleText].filter(Boolean);
       if (texts.length === 0) {
-        texts.push(
-          'I believe the best way to build something great is to ship fast and iterate. Over the past decade, I have learned that perfection is the enemy of progress. Every product I have launched taught me more than any certification ever could.',
-          'The tech industry moves at breakneck speed. What worked yesterday might be obsolete tomorrow. That is why I focus on fundamentals — understanding systems, people, and incentives.',
-          'My approach to leadership is simple: hire people smarter than you, give them clear context, and get out of their way. Empowerment beats micromanagement every time.'
-        );
+        // Try to fetch real data from onboarding state
+        try {
+          const stateData = await api.onboarding.getState();
+          const state = stateData?.state;
+          const resumeSummary = state?.connectedSources?.resume?.parsedData?.summary;
+          const linkedinSummary = state?.connectedSources?.linkedin?.profileData?.summary;
+          const careerGoals = state?.careerGoals || [];
+          const analysisSummary = state?.analysisResult?.profileSummary;
+
+          if (resumeSummary) texts.push(resumeSummary);
+          if (linkedinSummary) texts.push(linkedinSummary);
+          if (analysisSummary?.strengths?.length > 0) {
+            texts.push(`My strengths include: ${analysisSummary.strengths.join(', ')}`);
+          }
+          if (careerGoals.length > 0) {
+            texts.push(`My career goals are: ${careerGoals.join(', ')}`);
+          }
+        } catch {
+          // If no data available, require user to provide sample text
+        }
       }
+
+      if (texts.length === 0) {
+        setError('Please provide sample text so we can analyze your writing style');
+        setGenerating(false);
+        return;
+      }
+
       const result = await api.writing.generate(userId, texts);
       setDNA(result.dna || result);
       const st = await api.writing.getStatus(userId);

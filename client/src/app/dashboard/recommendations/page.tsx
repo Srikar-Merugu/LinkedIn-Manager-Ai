@@ -1,23 +1,114 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, TrendingUp, Target, Sparkles, ArrowRight } from 'lucide-react';
+import { Lightbulb, TrendingUp, Target, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { api } from '@/lib/api';
 
-const recommendations = [
-  { title: 'Post about AI trends', reason: 'Your audience engages most with AI content', impact: 'High', category: 'Content' },
-  { title: 'Connect with industry leaders', reason: 'Expand your network in target companies', impact: 'Medium', category: 'Network' },
-  { title: 'Update your brand DNA', reason: 'Your brand has evolved since last analysis', impact: 'High', category: 'Brand' },
-  { title: 'Schedule weekly posts', reason: 'Consistent posting increases reach by 3x', impact: 'Medium', category: 'Content' },
-];
+type Recommendation = {
+  title: string;
+  reason: string;
+  impact: 'high' | 'medium' | 'low';
+  category: string;
+};
 
 const impactColors: Record<string, string> = {
-  High: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-  Medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-  Low: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  high: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  medium: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  low: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
 };
 
 export default function RecommendationsPage() {
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
+
+  const loadRecommendations = async () => {
+    try {
+      setLoading(true);
+      const stateData = await api.onboarding.getState().catch(() => null);
+      const analysisResult = stateData?.state?.analysisResult;
+
+      if (analysisResult) {
+        const recs: Recommendation[] = [];
+
+        // Convert quick wins to recommendations
+        if (analysisResult.quickWins) {
+          for (const win of analysisResult.quickWins) {
+            recs.push({
+              title: win.action,
+              reason: `Impact: ${win.impact} | Effort: ${win.effort}`,
+              impact: win.impact as 'high' | 'medium' | 'low',
+              category: 'Quick Win',
+            });
+          }
+        }
+
+        // Add strategy-based recommendations
+        if (analysisResult.strategy90Day) {
+          for (const phase of analysisResult.strategy90Day.slice(0, 2)) {
+            for (const task of phase.tasks.slice(0, 2)) {
+              recs.push({
+                title: task,
+                reason: `${phase.focus} — ${phase.week}`,
+                impact: 'medium',
+                category: phase.focus,
+              });
+            }
+          }
+        }
+
+        // Add weakness-based recommendations
+        if (analysisResult.profileSummary?.weaknesses) {
+          for (const weakness of analysisResult.profileSummary.weaknesses.slice(0, 3)) {
+            recs.push({
+              title: `Address: ${weakness}`,
+              reason: 'This was identified as a gap in your profile analysis',
+              impact: 'high',
+              category: 'Profile Improvement',
+            });
+          }
+        }
+
+        setRecommendations(recs.length > 0 ? recs : [
+          { title: 'Complete your onboarding analysis', reason: 'Run a full profile analysis to get personalized recommendations', impact: 'high', category: 'Getting Started' },
+        ]);
+      } else {
+        setRecommendations([
+          { title: 'Complete your onboarding analysis', reason: 'Run a full profile analysis to get personalized recommendations', impact: 'high', category: 'Getting Started' },
+        ]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load recommendations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-surface-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -27,10 +118,10 @@ export default function RecommendationsPage() {
       <div className="grid gap-4">
         {recommendations.map((r, i) => (
           <motion.div
-            key={r.title}
+            key={`${r.title}-${i}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ delay: i * 0.05 }}
           >
             <GlassCard className="p-5 group cursor-pointer hover:border-brand-500/30 transition-all duration-300">
               <div className="flex items-start justify-between">

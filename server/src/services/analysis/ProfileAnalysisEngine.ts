@@ -358,7 +358,12 @@ export class ProfileAnalysisEngine {
     const relevanceScore = parsed.experience.industries.length > 0 ? 80 : 30;
     const progressionScore = parsed.summary.roleProgressionScore;
     const consistencyScore = parsed.experience.hasGaps ? 40 : 85;
-    const descriptionQualityScore = 60;
+
+    // Compute description quality from actual data
+    const totalRoles = parsed.experience.totalRoles || 1;
+    // Use totalRoles and careerProgression as proxy for description quality
+    const hasDetailedCareer = parsed.experience.careerProgression.length >= 2;
+    const descriptionQualityScore = hasDetailedCareer ? 75 : 45;
 
     const overall = Math.round((relevanceScore + progressionScore + consistencyScore + descriptionQualityScore) / 4);
 

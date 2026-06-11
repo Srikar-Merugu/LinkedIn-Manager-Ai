@@ -101,22 +101,35 @@ export default function ContentOperationsPage() {
       const brandDna = state.brandDNA || {};
       const writingDna = state.writingDNA || {};
       const careerGoal = state.careerGoal || {};
+      const analysisResult = state.analysisResult || {};
+
+      // Build strategy from actual analysis data
+      const pillars = analysisResult.contentPillars || [];
+      const scores = analysisResult.scores || {};
+      const quickWins = analysisResult.quickWins || [];
+      const strategy = analysisResult.strategy90Day || [];
+      const skills = linkedin.skills || resume.skills || [];
+      const experience = linkedin.experience || resume.experience || [];
 
       const strategyData = {
         overallStrategy: {
-          monthlyPlans: [
-            { monthNumber: 1, phase: 'positioning', contentMix: [{ type: 'story', percentage: 30 }, { type: 'educational', percentage: 25 }, { type: 'personal', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [1, 2, 3, 4] },
-            { monthNumber: 2, phase: 'authority', contentMix: [{ type: 'educational', percentage: 30 }, { type: 'engagement', percentage: 25 }, { type: 'personal', percentage: 20 }, { type: 'promotional', percentage: 25 }], weeklyThemes: [5, 6, 7, 8] },
-            { monthNumber: 3, phase: 'opportunity', contentMix: [{ type: 'engagement', percentage: 30 }, { type: 'story', percentage: 25 }, { type: 'educational', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [9, 10, 11, 12] },
+          monthlyPlans: strategy.length > 0 ? [
+            { monthNumber: 1, phase: strategy[0]?.focus || 'Foundation', contentMix: [{ type: 'story', percentage: 30 }, { type: 'educational', percentage: 25 }, { type: 'personal', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [1, 2, 3, 4] },
+            { monthNumber: 2, phase: strategy[1]?.focus || 'Authority', contentMix: [{ type: 'educational', percentage: 30 }, { type: 'engagement', percentage: 25 }, { type: 'personal', percentage: 20 }, { type: 'promotional', percentage: 25 }], weeklyThemes: [5, 6, 7, 8] },
+            { monthNumber: 3, phase: strategy[2]?.focus || 'Growth', contentMix: [{ type: 'engagement', percentage: 30 }, { type: 'story', percentage: 25 }, { type: 'educational', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [9, 10, 11, 12] },
+          ] : [
+            { monthNumber: 1, phase: 'Foundation', contentMix: [{ type: 'story', percentage: 30 }, { type: 'educational', percentage: 25 }, { type: 'personal', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [1, 2, 3, 4] },
+            { monthNumber: 2, phase: 'Authority', contentMix: [{ type: 'educational', percentage: 30 }, { type: 'engagement', percentage: 25 }, { type: 'personal', percentage: 20 }, { type: 'promotional', percentage: 25 }], weeklyThemes: [5, 6, 7, 8] },
+            { monthNumber: 3, phase: 'Growth', contentMix: [{ type: 'engagement', percentage: 30 }, { type: 'story', percentage: 25 }, { type: 'educational', percentage: 25 }, { type: 'promotional', percentage: 20 }], weeklyThemes: [9, 10, 11, 12] },
           ],
         },
         weeklyThemes: Array.from({ length: 12 }, (_, i) => ({
           globalWeekNumber: i + 1,
-          title: `Week ${i + 1} Theme`,
-          focus: 'Professional Growth',
-          description: 'Content aligned with career goals',
-          contentIdeas: ['Share your expertise', 'Industry insights', 'Personal journey'],
-          pillarFocus: ['Career Growth', 'Professional Development'],
+          title: strategy[Math.floor(i / 4)]?.tasks?.[i % 4] || `Week ${i + 1}`,
+          focus: strategy[Math.floor(i / 4)]?.focus || 'Content Creation',
+          description: `Week ${i + 1} content plan`,
+          contentIdeas: pillars.slice(0, 2).length > 0 ? pillars.slice(0, 2) : ['Share your expertise', 'Industry insights'],
+          pillarFocus: pillars.slice(0, 2).length > 0 ? pillars.slice(0, 2) : ['Career Growth', 'Professional Development'],
           contentTypeMix: [{ type: 'Post', count: 3 }, { type: 'Engagement', count: 5 }],
         })),
         growthGoals: [
@@ -124,11 +137,13 @@ export default function ContentOperationsPage() {
           { category: 'authority', goal: 'Establish thought leadership', successMetrics: ['Saves', 'Shares'] },
         ],
         careerGoal,
-        authorityTopics: (linkedin.skills || []).slice(0, 5).map((s: any) => s.name),
+        authorityTopics: skills.slice(0, 5).map((s: any) => s.name || s),
         brandDNA: brandDna,
         writingDNA: writingDna,
-        skills: linkedin.skills || resume.skills || [],
-        experience: linkedin.experience || resume.experience || [],
+        skills,
+        experience,
+        quickWins,
+        scores,
       };
 
       const result = await api.contentOperations.generateFullReport(userId, strategyData);

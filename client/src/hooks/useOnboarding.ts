@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -45,6 +46,7 @@ const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
 
 export function useOnboarding() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
   const isSignedIn = isAuthenticated;
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [completedSteps, setCompletedSteps] = useState<OnboardingStep[]>([]);
@@ -204,7 +206,8 @@ export function useOnboarding() {
       // Silently handle
     }
     setOnboardingComplete(true);
-  }, []);
+    router.replace('/dashboard');
+  }, [router]);
 
   return {
     currentStep,

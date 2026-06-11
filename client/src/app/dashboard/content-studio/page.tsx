@@ -73,8 +73,20 @@ export default function ContentStudioPage() {
     setError(null);
     setResult(null);
     try {
-      const voiceProfile = { vocabularyRules: [], toneRules: ['authentic'], storytellingRules: ['personal'], hookRules: [], ctaRules: [], communicationRules: ['clear'] };
-      const brandProfile = { positioning: 'Professional', audience: [], expertise: [topic], authorityAreas: [], brandRules: [], brandVoice: 'Professional', targetIndustries: [], targetRoles: [] };
+      // Fetch actual voice and brand profiles from server
+      let voiceProfile = { vocabularyRules: [], toneRules: ['authentic'], storytellingRules: ['personal'], hookRules: [], ctaRules: [], communicationRules: ['clear'] };
+      let brandProfile = { positioning: 'Professional', audience: [], expertise: [topic], authorityAreas: [], brandRules: [], brandVoice: 'Professional', targetIndustries: [], targetRoles: [] };
+
+      try {
+        const [voiceData, brandData] = await Promise.all([
+          api.writing.getDNA(userId).catch(() => null),
+          api.contentPillars.getAuthorityMap(userId).catch(() => null),
+        ]);
+        if (voiceData?.voiceProfile) voiceProfile = voiceData.voiceProfile;
+        if (brandData?.brandProfile) brandProfile = brandData.brandProfile;
+      } catch {
+        // Use defaults if profiles not yet generated
+      }
 
       const data = await api.contentGeneration.generate({
         userId,

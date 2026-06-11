@@ -139,9 +139,14 @@ export class StrategyScoringEngine {
 
   private scoreAudienceFit(strategy: StrategyToScore): ScoreDimension {
     const hasEducational = strategy.contentMix.some(m => m.type.includes('Educational'));
-    const relevanceToAudience = hasEducational ? 78 : 45;
-    const engagementPotential = strategy.contentMix.some(m => m.type.includes('Opinion')) ? 82 : 55;
-    const shareability = strategy.contentMix.some(m => m.type.includes('Framework') || m.type.includes('Educational')) ? 75 : 50;
+    const hasOpinion = strategy.contentMix.some(m => m.type.includes('Opinion'));
+    const hasFramework = strategy.contentMix.some(m => m.type.includes('Framework') || m.type.includes('Educational'));
+    const mixVariety = strategy.contentMix.length;
+
+    // Compute from actual content mix diversity
+    const relevanceToAudience = hasEducational ? Math.min(60 + mixVariety * 5, 85) : Math.max(40, 30 + mixVariety * 5);
+    const engagementPotential = hasOpinion ? Math.min(65 + mixVariety * 5, 88) : Math.max(35, 30 + mixVariety * 5);
+    const shareability = hasFramework ? Math.min(60 + mixVariety * 5, 82) : Math.max(35, 30 + mixVariety * 5);
     const overall = Math.round((relevanceToAudience + engagementPotential + shareability) / 3);
 
     return {
@@ -149,16 +154,17 @@ export class StrategyScoringEngine {
       subScores: { relevanceToAudience, engagementPotential, shareability },
       evidence: [
         hasEducational ? 'Educational content planned for audience value' : 'Add educational content to improve audience fit',
-        `Engagement potential rated at ${engagementPotential}/100 based on content mix`,
+        `Content mix has ${mixVariety} content types for variety`,
       ],
     };
   }
 
   private scoreExecution(strategy: StrategyToScore): ScoreDimension {
     const freq = strategy.frequencyRecommendation.postsPerWeek;
-    const feasibility = freq <= 4 ? 85 : freq <= 5 ? 65 : 45;
-    const consistency = freq >= 3 ? 75 : 50;
-    const resourceEfficiency = freq <= 3 ? 85 : 60;
+    // Compute from actual frequency relative to recommended range
+    const feasibility = freq <= 3 ? Math.min(80 + (4 - freq) * 5, 90) : freq <= 4 ? 75 : freq <= 5 ? 60 : 40;
+    const consistency = freq >= 3 ? Math.min(65 + freq * 5, 85) : Math.max(35, 25 + freq * 10);
+    const resourceEfficiency = freq <= 3 ? Math.min(80 + (3 - freq) * 5, 90) : freq <= 5 ? 65 : 45;
 
     const totalGoalCategories = new Set(strategy.growthGoals.map(g => g.category)).size;
     const ambitionScore = Math.min(100, totalGoalCategories * 15 + 20);
