@@ -124,7 +124,11 @@ export function createGoogleSheetsRouter(): Router {
         return res.status(400).json({ error: 'entries array required' });
       }
 
-      const connection = await GoogleConnection.findOne({ userId });
+      if (entries.length === 0) {
+        return res.status(400).json({ error: 'No calendar entries to export. Generate content first.' });
+      }
+
+      const connection = await GoogleConnection.findOne({ userId }) as any;
       if (!connection || !connection.isConnected) {
         return res.status(400).json({ error: 'Google account not connected' });
       }
@@ -149,8 +153,8 @@ export function createGoogleSheetsRouter(): Router {
       logger.info({ userId, spreadsheetId: result.spreadsheetId }, 'Calendar exported to Google Sheets');
       res.json(result);
     } catch (error: any) {
-      logger.error({ error: error.message }, 'Failed to export to Google Sheets');
-      res.status(500).json({ error: error.message });
+      logger.error({ error: error.message, stack: error.stack }, 'Failed to export to Google Sheets');
+      res.status(500).json({ error: error.message || 'Failed to export to Google Sheets' });
     }
   });
 

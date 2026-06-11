@@ -32,6 +32,7 @@ export default function ContentCalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null);
 
   const [googleConnected, setGoogleConnected] = useState(false);
@@ -97,6 +98,7 @@ export default function ContentCalendarPage() {
       return;
     }
     setSyncing(true);
+    setSyncError(null);
     try {
       const exportEntries = entries.map(e => ({
         date: e.date,
@@ -107,9 +109,16 @@ export default function ContentCalendarPage() {
         pillarName: e.pillarName,
         overallScore: e.overallScore,
       }));
+      if (exportEntries.length === 0) {
+        setSyncError('No content to export. Generate posts first.');
+        setSyncing(false);
+        return;
+      }
       const result = await api.google.exportToSheets(exportEntries);
       setSheetsUrl(result.spreadsheetUrl);
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setSyncError(e?.message || 'Failed to export');
+    }
     setSyncing(false);
   }
 
@@ -245,6 +254,15 @@ export default function ContentCalendarPage() {
           </div>
         ))}
       </div>
+
+      {/* Sync Error */}
+      {syncError && (
+        <div className="glass-card rounded-xl p-4 border border-red-500/20 bg-red-500/5 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <p className="text-sm text-red-300 flex-1">{syncError}</p>
+          <button onClick={() => setSyncError(null)} className="text-xs text-red-400 hover:text-red-300">Dismiss</button>
+        </div>
+      )}
 
       {viewMode === 'month' ? (
         /* Month View */
