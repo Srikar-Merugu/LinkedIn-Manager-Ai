@@ -193,7 +193,13 @@ export function createLinkedInPublishingRouter(): Router {
       const { id } = req.params;
       const { scheduledAt } = req.body;
 
-      const item = await QueueItem.findById(id);
+      let item = await QueueItem.findById(id);
+
+      // If not found by QueueItem ID, try finding by postId (calendar uses Post IDs)
+      if (!item) {
+        item = await QueueItem.findOne({ userId, postId: id });
+      }
+
       if (!item) return res.status(404).json({ error: 'Queue item not found' });
       if (item.userId.toString() !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
@@ -205,6 +211,14 @@ export function createLinkedInPublishingRouter(): Router {
         triggeredBy: 'user',
       });
       await item.save();
+
+      // Also update the linked Post's scheduleDate
+      if (item.postId) {
+        await Post.findByIdAndUpdate(item.postId, {
+          scheduleDate: item.scheduledAt,
+          status: 'scheduled',
+        });
+      }
 
       res.json(item);
     } catch (error: any) {
@@ -252,7 +266,8 @@ export function createLinkedInPublishingRouter(): Router {
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
-      const item = await QueueItem.findById(id);
+      let item = await QueueItem.findById(id);
+      if (!item) item = await QueueItem.findOne({ userId, postId: id });
       if (!item) return res.status(404).json({ error: 'Queue item not found' });
       if (item.userId.toString() !== userId) return res.status(403).json({ error: 'Unauthorized' });
 
@@ -313,7 +328,8 @@ export function createLinkedInPublishingRouter(): Router {
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
       const { id } = req.params;
-      const item = await QueueItem.findById(id);
+      let item = await QueueItem.findById(id);
+      if (!item) item = await QueueItem.findOne({ userId, postId: id });
       if (!item) return res.status(404).json({ error: 'Queue item not found' });
       if (item.userId.toString() !== userId) return res.status(403).json({ error: 'Unauthorized' });
       if (item.stage !== 'failed') return res.status(400).json({ error: 'Item is not in failed state' });
