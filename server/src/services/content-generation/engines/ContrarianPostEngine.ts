@@ -33,12 +33,21 @@ export class ContrarianPostEngine {
   generate(input: ContrarianInput): ContrarianOutput {
     logger.info({ topic: input.topic }, 'Generating contrarian post');
 
-    const hook = this.generateHook(input);
-    const body = this.generateBody(input);
-    const cta = this.generateCTA(input);
+    const safeInput = {
+      ...input,
+      topic: input.topic || 'this topic',
+      popularBelief: input.popularBelief || `What most people believe about ${input.topic || 'this topic'}`,
+      actualTruth: input.actualTruth || '',
+      evidence: Array.isArray(input.evidence) ? input.evidence : [],
+      voiceProfile: input.voiceProfile || { vocabulary: [], tone: 'authentic', contrarianStyle: 'provocative' },
+    };
+
+    const hook = this.generateHook(safeInput);
+    const body = this.generateBody(safeInput);
+    const cta = this.generateCTA(safeInput);
     const fullContent = `${hook}\n\n${body}\n\n${cta}`;
 
-    return { hook, body, cta, fullContent, position: input.actualTruth };
+    return { hook, body, cta, fullContent, position: safeInput.actualTruth };
   }
 
   generateHook(input: ContrarianInput): string {

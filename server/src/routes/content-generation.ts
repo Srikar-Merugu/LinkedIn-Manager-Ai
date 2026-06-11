@@ -39,15 +39,29 @@ export function createContentGenerationRouter(): Router {
       if (!authUserId) return res.status(401).json({ error: 'Authentication required' });
 
       const input: GenerateInput = req.body;
-      if (!input.userId || !input.topic || !input.contentType) {
-        return res.status(400).json({ error: 'userId, topic, and contentType are required' });
-      }
+      if (!input.userId) return res.status(400).json({ error: 'Missing field: userId', field: 'userId' });
+      if (!input.topic || !input.topic.trim()) return res.status(400).json({ error: 'Please enter a topic', field: 'topic' });
+      if (!input.contentType) return res.status(400).json({ error: 'Missing field: contentType', field: 'contentType' });
+
+      // Apply defaults for optional fields
+      input.topic = input.topic.trim();
+      input.context = input.context || `Sharing insights about ${input.topic}`;
+      input.keyInsight = input.keyInsight || input.topic;
+      input.personalAngle = input.personalAngle || '';
+      input.challenge = input.challenge || '';
+      input.outcome = input.outcome || '';
+      input.sourceType = input.sourceType || 'manual';
+      input.sourceDescription = input.sourceDescription || `Manual generation for ${input.topic}`;
 
       // Load analysis report if voiceProfile/brandProfile not provided
       if (!input.voiceProfile || !input.brandProfile) {
         const report = await AnalysisReport.findOne({ userId: new mongoose.Types.ObjectId(input.userId) }).lean();
         if (!report) {
-          return res.status(400).json({ error: 'Analysis report required', details: 'Complete onboarding first to generate your analysis report.' });
+          return res.status(400).json({
+            error: 'LinkedIn Analysis required',
+            details: 'Complete onboarding and run LinkedIn Analysis first to generate content.',
+            action: 'generate_analysis',
+          });
         }
         if (!input.voiceProfile) {
           const wd = (report as any).writingDNA || {};
@@ -91,9 +105,11 @@ export function createContentGenerationRouter(): Router {
         try {
           await QueueItem.create({
             userId: new mongoose.Types.ObjectId(input.userId),
+            postId: result.post._id,
             stage: 'draft_generated',
             priority: 50,
             automationMode: 'manual',
+            title: result.post.title,
             draftGeneratedAt: new Date(),
             stageHistory: [{ stage: 'draft_generated', enteredAt: new Date(), triggeredBy: 'content_generation' }],
           });

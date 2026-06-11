@@ -35,14 +35,27 @@ export class LinkedInOptimizationEngine {
   optimize(input: OptimizationInput): OptimizationResult {
     logger.info({ contentType: input.contentType }, 'Optimizing for LinkedIn');
 
-    const issues: OptimizationResult['issues'] = [];
-    const fullContent = `${input.hook}\n\n${input.body}\n\n${input.cta}`;
+    const hook = input.hook || '';
+    const body = input.body || '';
+    const cta = input.cta || '';
+    const contentType = input.contentType || '';
+    const topic = input.topic || '';
 
-    const dwellTimeScore = this.evaluateDwellTime(input);
-    const commentScore = this.evaluateCommentPotential(input);
-    const saveScore = this.evaluateSavePotential(input);
-    const shareScore = this.evaluateSharePotential(input);
-    const discussionQuality = this.evaluateDiscussionQuality(input);
+    const issues: OptimizationResult['issues'] = [];
+    const fullContent = `${hook}\n\n${body}\n\n${cta}`;
+
+    const dwellTimeScore = this.evaluateDwellTime(hook, body);
+    const commentScore = this.evaluateCommentPotential(hook, body, cta);
+    const saveScore = this.evaluateSavePotential(body, cta, contentType);
+    const shareScore = this.evaluateSharePotential(body, cta, topic);
+    const discussionQuality = this.evaluateDiscussionQuality(body);
+
+    this.checkEngagementBait(fullContent, issues);
+    this.checkGenericWriting(fullContent, issues);
+    this.checkLowValue(fullContent, issues);
+    this.checkHookLength(hook, issues);
+    this.checkContentLength(body, issues);
+    this.checkCTAQuality(cta, issues);
 
     this.checkEngagementBait(fullContent, issues);
     this.checkGenericWriting(fullContent, issues);
@@ -58,94 +71,94 @@ export class LinkedInOptimizationEngine {
     return { dwellTimeScore, commentScore, saveScore, shareScore, discussionQuality, overall, issues };
   }
 
-  private evaluateDwellTime(input: OptimizationInput): number {
-    const words = input.body.split(/\s+/).filter(Boolean).length;
-    const hasHookQuestion = input.hook.includes('?');
-    const hasFormatting = input.body.includes('**') || input.body.includes('•');
+  private evaluateDwellTime(hook: string, body: string): number {
+    const words = body.split(/\s+/).filter(Boolean).length;
+    const hasHookQuestion = hook.includes('?');
+    const hasFormatting = body.includes('**') || body.includes('•');
 
     let score = 40;
     if (words >= 100 && words <= 300) score += 20;
     if (hasHookQuestion) score += 15;
     if (hasFormatting) score += 15;
 
-    const hasLineBreaks = (input.body.match(/\n/g) || []).length >= 2;
+    const hasLineBreaks = (body.match(/\n/g) || []).length >= 2;
     if (hasLineBreaks) score += 10;
 
     return Math.min(100, score);
   }
 
-  private evaluateCommentPotential(input: OptimizationInput): number {
+  private evaluateCommentPotential(hook: string, body: string, cta: string): number {
     let score = 30;
 
-    if (input.cta.includes('?')) score += 20;
-    if (input.cta.includes('👇') || input.cta.includes('↓')) score += 10;
-    if (input.cta.toLowerCase().includes('comment') || input.cta.toLowerCase().includes('share')) score += 10;
-    if (input.cta.toLowerCase().includes('agree') || input.cta.toLowerCase().includes('disagree')) score += 10;
-    if (input.cta.toLowerCase().includes('what') || input.cta.toLowerCase().includes('your')) score += 10;
+    if (cta.includes('?')) score += 20;
+    if (cta.includes('👇') || cta.includes('↓')) score += 10;
+    if (cta.toLowerCase().includes('comment') || cta.toLowerCase().includes('share')) score += 10;
+    if (cta.toLowerCase().includes('agree') || cta.toLowerCase().includes('disagree')) score += 10;
+    if (cta.toLowerCase().includes('what') || cta.toLowerCase().includes('your')) score += 10;
 
     const opinionTriggers = ['controversial', 'unpopular', 'hot take', 'change my mind'];
-    const hasOpinionTrigger = opinionTriggers.some(t => input.hook.toLowerCase().includes(t));
+    const hasOpinionTrigger = opinionTriggers.some(t => hook.toLowerCase().includes(t));
     if (hasOpinionTrigger) score += 10;
 
     return Math.min(100, score);
   }
 
-  private evaluateSavePotential(input: OptimizationInput): number {
+  private evaluateSavePotential(body: string, cta: string, contentType: string): number {
     let score = 30;
 
     const educationalKeywords = ['educational', 'framework', 'guide', 'tutorial', 'how to'];
     const isEducational = educationalKeywords.some(
-      t => input.contentType.includes(t) || input.body.toLowerCase().includes(t)
+      t => contentType.includes(t) || body.toLowerCase().includes(t)
     );
     if (isEducational) score += 20;
 
-    if (input.body.includes('1.') || input.body.includes('•') || input.body.includes('- ')) score += 15;
-    if (input.body.toLowerCase().includes('save') || input.cta.toLowerCase().includes('save')) score += 10;
+    if (body.includes('1.') || body.includes('•') || body.includes('- ')) score += 15;
+    if (body.toLowerCase().includes('save') || cta.toLowerCase().includes('save')) score += 10;
 
-    const hasList = (input.body.match(/\d+\./g) || []).length >= 3;
+    const hasList = (body.match(/\d+\./g) || []).length >= 3;
     if (hasList) score += 15;
 
     const hasActionableAdvice = ['you can', 'here\'s how', 'try this', 'do this'].some(
-      t => input.body.toLowerCase().includes(t)
+      t => body.toLowerCase().includes(t)
     );
     if (hasActionableAdvice) score += 10;
 
     return Math.min(100, score);
   }
 
-  private evaluateSharePotential(input: OptimizationInput): number {
+  private evaluateSharePotential(body: string, cta: string, topic: string): number {
     let score = 30;
 
     const shareableTopics = ['career', 'growth', 'learn', 'success', 'failure', 'lesson'];
-    const hasShareableTopic = shareableTopics.some(t => input.topic.toLowerCase().includes(t));
+    const hasShareableTopic = shareableTopics.some(t => topic.toLowerCase().includes(t));
     if (hasShareableTopic) score += 15;
 
     const storyElements = ['because', 'but', 'then', 'however', 'after', 'before'];
-    const storyCount = storyElements.filter(e => input.body.toLowerCase().includes(e)).length;
+    const storyCount = storyElements.filter(e => body.toLowerCase().includes(e)).length;
     if (storyCount >= 3) score += 15;
 
-    if (input.cta.toLowerCase().includes('share') || input.cta.toLowerCase().includes('tag')) score += 15;
+    if (cta.toLowerCase().includes('share') || cta.toLowerCase().includes('tag')) score += 15;
 
     const emotionalTriggers = ['struggled', 'failed', 'mistake', 'regret', 'proud', 'grateful'];
-    const hasEmotion = emotionalTriggers.some(t => input.body.toLowerCase().includes(t));
+    const hasEmotion = emotionalTriggers.some(t => body.toLowerCase().includes(t));
     if (hasEmotion) score += 15;
 
-    const hasPersonalStory = input.body.toLowerCase().includes('i ') || input.body.toLowerCase().includes('my ');
+    const hasPersonalStory = body.toLowerCase().includes('i ') || body.toLowerCase().includes('my ');
     if (hasPersonalStory) score += 10;
 
     return Math.min(100, score);
   }
 
-  private evaluateDiscussionQuality(input: OptimizationInput): number {
+  private evaluateDiscussionQuality(body: string): number {
     let score = 40;
 
     const substantiveTerms = ['because', 'reason', 'evidence', 'experience', 'example', 'data', 'research', 'study'];
-    const substantiveCount = substantiveTerms.filter(t => input.body.toLowerCase().includes(t)).length;
+    const substantiveCount = substantiveTerms.filter(t => body.toLowerCase().includes(t)).length;
     score += substantiveCount * 5;
 
-    if (input.body.split(/\n\n/).length >= 3) score += 10;
+    if (body.split(/\n\n/).length >= 3) score += 10;
 
-    const wordCount = input.body.split(/\s+/).filter(Boolean).length;
+    const wordCount = body.split(/\s+/).filter(Boolean).length;
     if (wordCount >= 100 && wordCount <= 500) score += 10;
 
     return Math.min(100, score);

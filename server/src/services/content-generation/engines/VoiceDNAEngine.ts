@@ -43,17 +43,20 @@ export class VoiceDNAEngine {
   validate(content: string, profile: VoiceProfile): VoiceValidationResult {
     logger.info('Validating content against voice DNA');
 
-    const vocabularyRules = Array.isArray(profile.vocabularyRules) ? profile.vocabularyRules : [];
-    const toneRules = Array.isArray(profile.toneRules) ? profile.toneRules : [];
-    const storytellingRules = Array.isArray(profile.storytellingRules) ? profile.storytellingRules : [];
-    const hookRules = Array.isArray(profile.hookRules) ? profile.hookRules : [];
-    const ctaRules = Array.isArray(profile.ctaRules) ? profile.ctaRules : [];
+    const safeContent = content || '';
+    const safeProfile = profile || {} as VoiceProfile;
 
-    const vocabularyMatch = this.checkVocabulary(content, vocabularyRules);
-    const toneMatch = this.checkTone(content, toneRules);
-    const storytellingMatch = this.checkStorytelling(content, storytellingRules);
-    const hookMatch = this.checkHooks(content, hookRules);
-    const ctaMatch = this.checkCTAs(content, ctaRules);
+    const vocabularyRules = Array.isArray(safeProfile.vocabularyRules) ? safeProfile.vocabularyRules : [];
+    const toneRules = Array.isArray(safeProfile.toneRules) ? safeProfile.toneRules : [];
+    const storytellingRules = Array.isArray(safeProfile.storytellingRules) ? safeProfile.storytellingRules : [];
+    const hookRules = Array.isArray(safeProfile.hookRules) ? safeProfile.hookRules : [];
+    const ctaRules = Array.isArray(safeProfile.ctaRules) ? safeProfile.ctaRules : [];
+
+    const vocabularyMatch = this.checkVocabulary(safeContent, vocabularyRules);
+    const toneMatch = this.checkTone(safeContent, toneRules);
+    const storytellingMatch = this.checkStorytelling(safeContent, storytellingRules);
+    const hookMatch = this.checkHooks(safeContent, hookRules);
+    const ctaMatch = this.checkCTAs(safeContent, ctaRules);
 
     const issues: VoiceValidationResult['issues'] = [];
 

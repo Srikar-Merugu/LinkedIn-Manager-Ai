@@ -348,10 +348,14 @@ export class ContentGenerationOrchestrator {
 
   private generateContent(input: GenerateInput): StoryOutput | EducationalOutput | FrameworkOutput | ContrarianOutput {
     const vp = input.voiceProfile || {};
-    const toneRules = vp.toneRules || [];
-    const vocabularyRules = vp.vocabularyRules || [];
-    const storytellingRules = vp.storytellingRules || [];
-    const communicationRules = vp.communicationRules || [];
+    const toneRules = Array.isArray(vp.toneRules) ? vp.toneRules : [];
+    const vocabularyRules = Array.isArray(vp.vocabularyRules) ? vp.vocabularyRules : [];
+    const storytellingRules = Array.isArray(vp.storytellingRules) ? vp.storytellingRules : [];
+    const communicationRules = Array.isArray(vp.communicationRules) ? vp.communicationRules : [];
+
+    const topic = input.topic || 'this topic';
+    const context = input.context || `Sharing insights about ${topic}`;
+    const keyInsight = input.keyInsight || topic;
 
     const storyVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', storytellingStyle: storytellingRules[0] || 'personal' };
     const edVP = { vocabulary: vocabularyRules, tone: toneRules[0] || 'authentic', teachingStyle: communicationRules[0] || 'clear' };
@@ -363,12 +367,12 @@ export class ContentGenerationOrchestrator {
       case 'journey':
       case 'career_lesson': {
         const si: StoryInput = {
-          topic: input.topic,
-          context: input.context,
-          keyInsight: input.keyInsight,
-          personalAngle: input.personalAngle,
-          challenge: input.challenge,
-          outcome: input.outcome,
+          topic,
+          context,
+          keyInsight,
+          personalAngle: input.personalAngle || '',
+          challenge: input.challenge || '',
+          outcome: input.outcome || '',
           voiceProfile: storyVP,
         };
         return storyPostEngine.generate(si);
@@ -377,12 +381,12 @@ export class ContentGenerationOrchestrator {
       case 'educational':
       case 'case_study': {
         const ei: EducationalInput = {
-          topic: input.topic,
-          concept: input.keyInsight,
-          examples: [input.context],
+          topic,
+          concept: keyInsight,
+          examples: [context],
           actionableAdvice: [
-            `Start by understanding the core of ${input.topic}`,
-            `Apply the ${input.topic} principles in your work`,
+            `Start by understanding the core of ${topic}`,
+            `Apply the ${topic} principles in your work`,
             'Measure and reflect on results',
             'Iterate based on feedback',
           ],
@@ -395,16 +399,16 @@ export class ContentGenerationOrchestrator {
       case 'framework':
       case 'thought_leadership': {
         const fi: FrameworkInput = {
-          topic: input.topic,
-          frameworkName: `The ${input.topic} Framework`,
+          topic,
+          frameworkName: `The ${topic} Framework`,
           steps: [
-            { name: 'Understand', description: `Deep dive into ${input.topic}` },
+            { name: 'Understand', description: `Deep dive into ${topic}` },
             { name: 'Strategize', description: 'Build your approach' },
             { name: 'Execute', description: 'Take consistent action' },
             { name: 'Optimize', description: 'Measure and iterate' },
           ],
           voiceProfile: fwVP,
-          outcome: `Master ${input.topic} with confidence`,
+          outcome: `Master ${topic} with confidence`,
         };
         return frameworkPostEngine.generate(fi);
       }
@@ -412,10 +416,10 @@ export class ContentGenerationOrchestrator {
       case 'contrarian':
       case 'industry_commentary': {
         const ci: ContrarianInput = {
-          topic: input.topic,
-          popularBelief: `What most people believe about ${input.topic}`,
-          actualTruth: input.keyInsight,
-          evidence: [input.context, 'Based on my experience and results'],
+          topic,
+          popularBelief: `What most people believe about ${topic}`,
+          actualTruth: keyInsight,
+          evidence: [context, 'Based on my experience and results'],
           voiceProfile: ctVP,
         };
         return contrarianPostEngine.generate(ci);
@@ -425,14 +429,14 @@ export class ContentGenerationOrchestrator {
       case 'build_in_public':
       case 'founder_update': {
         const projectData: ProjectData = {
-          name: input.topic,
-          description: input.context,
+          name: topic,
+          description: context,
           technologies: [],
           role: input.currentRole || 'developer',
           duration: 'ongoing',
-          outcome: input.outcome || input.keyInsight,
+          outcome: input.outcome || keyInsight,
           challenges: input.challenge ? [input.challenge] : [],
-          learnings: [input.keyInsight],
+          learnings: [keyInsight],
         };
         const posts = projectBreakdownEngine.generateAll(projectData, storyVP);
         const selected = posts[0];
@@ -441,9 +445,9 @@ export class ContentGenerationOrchestrator {
 
       default: {
         const si: StoryInput = {
-          topic: input.topic,
-          context: input.context,
-          keyInsight: input.keyInsight,
+          topic,
+          context,
+          keyInsight,
           voiceProfile: storyVP,
         };
         return storyPostEngine.generate(si);

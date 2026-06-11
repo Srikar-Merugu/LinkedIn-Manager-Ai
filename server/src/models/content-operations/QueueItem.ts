@@ -2,6 +2,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IQueueItem extends Document {
   userId: mongoose.Types.ObjectId;
+  postId?: mongoose.Types.ObjectId;
+  title?: string;
   calendarEntryId?: mongoose.Types.ObjectId;
   strategyId?: mongoose.Types.ObjectId;
   version: number;
@@ -27,6 +29,8 @@ export interface IQueueItem extends Document {
 
 const QueueItemSchema = new Schema<IQueueItem>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  postId: { type: Schema.Types.ObjectId, ref: 'Post' },
+  title: { type: String, default: '' },
   calendarEntryId: { type: Schema.Types.ObjectId, ref: 'ContentCalendar' },
   strategyId: { type: Schema.Types.ObjectId, ref: 'ContentStrategyIntelligence' },
   version: { type: Number, default: 1 },

@@ -64,14 +64,21 @@ export class ContentReviewEngine {
   review(input: ContentReviewInput): ContentReviewResult {
     logger.info({ contentType: input.contentType }, 'Reviewing content');
 
+    const hook = input.hook || '';
+    const body = input.body || '';
+    const cta = input.cta || '';
+    const fullContent = input.fullContent || '';
+    const contentType = input.contentType || '';
+    const topic = input.topic || '';
+
     const issues: DetectedIssue[] = [];
 
-    this.detectAIPhrases(input.fullContent, issues);
-    this.detectOverusedPhrases(input.fullContent, issues);
-    this.detectCliches(input.fullContent, issues);
-    this.detectWeakHook(input.hook, issues);
-    this.detectWeakCTA(input.cta, issues);
-    this.detectPassiveVoice(input.body, issues);
+    this.detectAIPhrases(fullContent, issues);
+    this.detectOverusedPhrases(fullContent, issues);
+    this.detectCliches(fullContent, issues);
+    this.detectWeakHook(hook, issues);
+    this.detectWeakCTA(cta, issues);
+    this.detectPassiveVoice(body, issues);
 
     const aiPhraseCount = issues.filter(i => i.type === 'ai_sounding').length;
     const clicheCount = issues.filter(i => i.type === 'overused_phrase').length;

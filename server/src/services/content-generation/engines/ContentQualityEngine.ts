@@ -33,12 +33,18 @@ export class ContentQualityEngine {
   evaluate(input: QualityInput): QualityResult {
     logger.info({ contentType: input.contentType }, 'Evaluating content quality');
 
-    const clarity = this.evaluateClarity(input.content);
-    const authenticity = this.evaluateAuthenticity(input.content);
-    const readability = this.evaluateReadability(input.content);
-    const authority = this.evaluateAuthority(input.content, input.topic);
-    const uniqueness = this.evaluateUniqueness(input.content);
-    const engagementPotential = this.evaluateEngagement(input);
+    const content = input.content || '';
+    const topic = input.topic || '';
+    const hook = input.hook || '';
+    const cta = input.cta || '';
+    const contentType = input.contentType || '';
+
+    const clarity = this.evaluateClarity(content);
+    const authenticity = this.evaluateAuthenticity(content);
+    const readability = this.evaluateReadability(content);
+    const authority = this.evaluateAuthority(content, topic);
+    const uniqueness = this.evaluateUniqueness(content);
+    const engagementPotential = this.evaluateEngagement({ content, hook, cta, contentType, topic });
 
     const overall = Math.round(
       (clarity * 0.2 + authenticity * 0.2 + readability * 0.15 + authority * 0.2 + uniqueness * 0.1 + engagementPotential * 0.15)

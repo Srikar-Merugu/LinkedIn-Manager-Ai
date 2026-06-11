@@ -28,12 +28,15 @@ export class BrandDNAEngine {
   validate(content: string, topic: string, profile: BrandProfile): BrandValidationResult {
     logger.info({ topic }, 'Validating content against brand DNA');
 
+    const safeContent = content || '';
+    const safeProfile = profile || {} as BrandProfile;
+
     const boundaryFlags: BrandValidationResult['boundaryFlags'] = [];
     const recommendations: string[] = [];
 
-    const positioningMatch = this.checkPositioning(content, profile);
-    const audienceMatch = this.checkAudience(content, profile);
-    const expertiseMatch = this.checkExpertise(content, profile);
+    const positioningMatch = this.checkPositioning(safeContent, safeProfile);
+    const audienceMatch = this.checkAudience(safeContent, safeProfile);
+    const expertiseMatch = this.checkExpertise(safeContent, safeProfile);
 
     if (positioningMatch < 50) {
       boundaryFlags.push({ type: 'positioning', message: `Content doesn't reflect brand positioning: ${profile.positioning}`, severity: 'high' });
@@ -57,7 +60,8 @@ export class BrandDNAEngine {
 
   private checkPositioning(content: string, profile: BrandProfile): number {
     const content_lower = content.toLowerCase();
-    const words = profile.positioning.toLowerCase().split(' ');
+    const positioning = profile.positioning || '';
+    const words = positioning.split(' ');
     const matched = words.filter(w => w.length > 3 && content_lower.includes(w)).length;
     return Math.min(100, Math.round((matched / Math.max(words.filter(w => w.length > 3).length, 1)) * 100));
   }
@@ -67,7 +71,7 @@ export class BrandDNAEngine {
     const audience = Array.isArray(profile.audience) ? profile.audience : [];
     const targetIndustries = Array.isArray(profile.targetIndustries) ? profile.targetIndustries : [];
     const targetRoles = Array.isArray(profile.targetRoles) ? profile.targetRoles : [];
-    const audienceTerms = [...audience, ...targetIndustries, ...targetRoles];
+    const audienceTerms = [...audience, ...targetIndustries, ...targetRoles].filter(t => typeof t === 'string' && t);
     if (audienceTerms.length === 0) return 70;
     const matched = audienceTerms.filter(t => content_lower.includes(t.toLowerCase())).length;
     return Math.min(100, Math.round((matched / audienceTerms.length) * 100));
@@ -77,7 +81,7 @@ export class BrandDNAEngine {
     const content_lower = content.toLowerCase();
     const expertise = Array.isArray(profile.expertise) ? profile.expertise : [];
     const authorityAreas = Array.isArray(profile.authorityAreas) ? profile.authorityAreas : [];
-    const expertiseTerms = [...expertise, ...authorityAreas];
+    const expertiseTerms = [...expertise, ...authorityAreas].filter(t => typeof t === 'string' && t);
     if (expertiseTerms.length === 0) return 75;
     const matched = expertiseTerms.filter(t => content_lower.includes(t.toLowerCase())).length;
     return Math.min(100, Math.round((matched / expertiseTerms.length) * 100));
