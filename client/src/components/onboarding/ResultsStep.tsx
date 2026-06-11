@@ -12,7 +12,7 @@ export function ResultsStep({ summary, onFinish }: ResultsStepProps) {
   const scores = summary?.scores || {};
   const pillars = summary?.contentPillars || [];
   const quickWins = summary?.quickWins || [];
-  const strategy = summary?.strategy90Day || [];
+  const strategy = summary?.strategy90Day || summary?.strategy90Days?.monthlyPlans || [];
   const profileSummary = summary?.profileSummary || {};
 
   const scoreItems = [
@@ -47,10 +47,10 @@ export function ResultsStep({ summary, onFinish }: ResultsStepProps) {
             <CheckCircle2 className="w-4 h-4" /> Strengths
           </h3>
           <div className="space-y-2">
-            {profileSummary.strengths.map((s: string, i: number) => (
+            {(profileSummary.strengths || []).map((s: any, i: number) => (
               <div key={i} className="flex items-center gap-2 text-sm text-surface-300">
                 <div className="w-1.5 h-1.5 rounded-full bg-accent-400" />
-                {s}
+                {typeof s === 'string' ? s : s.title || 'Strength'}
               </div>
             ))}
           </div>
@@ -68,10 +68,10 @@ export function ResultsStep({ summary, onFinish }: ResultsStepProps) {
             <AlertTriangle className="w-4 h-4" /> Areas to Improve
           </h3>
           <div className="space-y-2">
-            {profileSummary.weaknesses.map((w: string, i: number) => (
+            {(profileSummary.weaknesses || []).map((w: any, i: number) => (
               <div key={i} className="flex items-center gap-2 text-sm text-surface-300">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                {w}
+                {typeof w === 'string' ? w : w.title || 'Weakness'}
               </div>
             ))}
           </div>
@@ -114,9 +114,9 @@ export function ResultsStep({ summary, onFinish }: ResultsStepProps) {
             <Target className="w-4 h-4 text-brand-400" /> Your Content Pillars
           </h3>
           <div className="flex flex-wrap gap-2">
-            {pillars.map((pillar: string, i: number) => (
+            {pillars.map((pillar: any, i: number) => (
               <span key={i} className="px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-sm text-brand-400">
-                {pillar}
+                {typeof pillar === 'string' ? pillar : pillar.name || 'Pillar'}
               </span>
             ))}
           </div>
@@ -162,11 +162,11 @@ export function ResultsStep({ summary, onFinish }: ResultsStepProps) {
             {strategy.map((phase: any, i: number) => (
               <div key={i} className="p-3 rounded-lg bg-white/[0.02]">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-brand-400">{phase.week}</span>
-                  <span className="text-xs text-surface-500">— {phase.focus}</span>
+                  <span className="text-xs font-medium text-brand-400">{phase.week || `Month ${phase.month || i + 1}`}</span>
+                  <span className="text-xs text-surface-500">— {phase.focus || phase.phase || ''}</span>
                 </div>
                 <ul className="space-y-1">
-                  {phase.tasks.map((task: string, j: number) => (
+                  {(phase.tasks || phase.goals || []).map((task: string, j: number) => (
                     <li key={j} className="text-xs text-surface-400 flex items-start gap-2">
                       <div className="w-1 h-1 rounded-full bg-surface-600 mt-1.5 flex-shrink-0" />
                       {task}

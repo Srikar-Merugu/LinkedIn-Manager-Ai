@@ -77,7 +77,7 @@ export default function DashboardPage() {
     setError(null);
     try {
       const data = await api.report.get();
-      setReport(data.report ?? null);
+      setReport(data ?? null);
     } catch (err: any) {
       setError(err?.message || 'Failed to load your analysis report.');
     } finally {
