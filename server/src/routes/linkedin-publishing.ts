@@ -32,15 +32,21 @@ export function createLinkedInPublishingRouter(): Router {
       const stateData = JSON.stringify({ userId, state, purpose: 'publishing' });
       const encodedState = Buffer.from(stateData).toString('base64url');
 
+      const redirectUri = process.env.LINKEDIN_REDIRECT_URI || '';
+      const clientId = process.env.LINKEDIN_CLIENT_ID || '';
+
+      logger.info({ userId, redirectUri, clientId: clientId.substring(0, 8) + '...' }, 'Generating LinkedIn OAuth URL for publishing');
+
       const params = new URLSearchParams({
         response_type: 'code',
-        client_id: process.env.LINKEDIN_CLIENT_ID || '',
-        redirect_uri: process.env.LINKEDIN_REDIRECT_URI || '',
+        client_id: clientId,
+        redirect_uri: redirectUri,
         scope: 'openid profile email w_member_social',
         state: encodedState,
       });
 
       const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
+      logger.info({ userId, authUrl: authUrl.substring(0, 100) + '...' }, 'LinkedIn OAuth URL generated');
       res.json({ url: authUrl });
     } catch (error: any) {
       logger.error({ error: error.message }, 'Failed to generate LinkedIn connect URL');
@@ -130,13 +136,20 @@ export function createLinkedInPublishingRouter(): Router {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
+      logger.info({ userId }, 'Checking LinkedIn connection status');
+
       const connection = await LinkedInConnection.findOne({ userId }).lean();
       if (!connection) {
+        logger.info({ userId }, 'No LinkedIn connection found');
         return res.json({ connected: false });
       }
 
+      logger.info({ userId, linkedinId: connection.linkedinUserId, isConnected: connection.isConnected }, 'LinkedIn connection found');
+
       // Test the connection
       const testResult = await linkedinPublisher.testConnection(userId);
+
+      logger.info({ userId, connected: testResult.connected, error: testResult.error }, 'LinkedIn connection test result');
 
       res.json({
         connected: testResult.connected,
@@ -147,6 +160,7 @@ export function createLinkedInPublishingRouter(): Router {
         error: testResult.error,
       });
     } catch (error: any) {
+      logger.error({ error: error.message }, 'Failed to check LinkedIn status');
       res.status(500).json({ error: error.message });
     }
   });

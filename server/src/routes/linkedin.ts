@@ -1,9 +1,12 @@
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 import pino from 'pino';
 import { LinkedInService } from '../services/linkedin/LinkedInService';
 import { ProfileSyncService } from '../services/linkedin/ProfileSyncService';
+import { LinkedInConnection, encrypt } from '../models/identity/LinkedInConnection';
 import { User } from '../models/identity/User';
 import { env } from '../config/env';
 
@@ -42,25 +45,100 @@ export function createLinkedInRouter(
   });
 
   router.get('/linkedin/callback', async (req: Request, res: Response) => {
+    const clientUrl = getClientUrl();
     try {
       const { code, state, error: linkedinError } = req.query;
-      const clientUrl = getClientUrl();
+
+      logger.info({ hasCode: !!code, hasState: !!state, linkedinError }, 'LinkedIn callback received');
 
       if (linkedinError) {
-        return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=${encodeURIComponent(String(linkedinError))}`);
+        logger.error({ linkedinError }, 'LinkedIn returned an error');
+        return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=${encodeURIComponent(String(linkedinError))}`);
       }
 
       if (!code || !state) {
-        return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=missing_parameters`);
+        logger.error('Missing code or state in LinkedIn callback');
+        return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=missing_parameters`);
       }
 
       let userId: string;
+      let purpose: string | undefined;
       try {
         const stateData = JSON.parse(Buffer.from(String(state), 'base64url').toString());
         userId = stateData.userId;
+        purpose = stateData.purpose;
+        logger.info({ userId, purpose }, 'LinkedIn callback state decoded');
       } catch {
-        return res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=invalid_state`);
+        logger.error('Failed to decode LinkedIn callback state');
+        return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=invalid_state`);
       }
+
+      // ───────── PUBLISHING FLOW ─────────
+      if (purpose === 'publishing') {
+        logger.info({ userId }, 'Processing LinkedIn callback for PUBLISHING flow');
+
+        let tokenResponse;
+        try {
+          tokenResponse = await axios.post(
+            'https://www.linkedin.com/oauth/v2/accessToken',
+            new URLSearchParams({
+              grant_type: 'authorization_code',
+              code: String(code),
+              client_id: process.env.LINKEDIN_CLIENT_ID || '',
+              client_secret: process.env.LINKEDIN_CLIENT_SECRET || '',
+              redirect_uri: process.env.LINKEDIN_REDIRECT_URI || '',
+            }).toString(),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+          );
+          logger.info({ userId, expiresIn: tokenResponse.data.expires_in }, 'LinkedIn token exchanged for publishing');
+        } catch (error: any) {
+          logger.error({ error: error.message, userId }, 'LinkedIn token exchange failed for publishing');
+          return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=token_exchange_failed`);
+        }
+
+        const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+        let profile;
+        try {
+          const profileResponse = await axios.get('https://api.linkedin.com/v2/userinfo', {
+            headers: { Authorization: `Bearer ${access_token}` },
+          });
+          profile = profileResponse.data;
+          logger.info({ userId, linkedinId: profile.sub }, 'LinkedIn profile fetched for publishing');
+        } catch (error: any) {
+          logger.error({ error: error.message, userId }, 'Failed to fetch LinkedIn profile for publishing');
+          return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=profile_fetch_failed`);
+        }
+
+        try {
+          await LinkedInConnection.findOneAndUpdate(
+            { userId: new mongoose.Types.ObjectId(userId) },
+            {
+              userId: new mongoose.Types.ObjectId(userId),
+              linkedinUserId: profile.sub,
+              email: profile.email || '',
+              fullName: profile.name || '',
+              profileUrl: `https://linkedin.com/in/${profile.sub}`,
+              accessTokenEncrypted: encrypt(access_token),
+              refreshTokenEncrypted: refresh_token ? encrypt(refresh_token) : '',
+              tokenExpiresAt: new Date(Date.now() + (expires_in || 600) * 1000),
+              scope: 'openid profile email w_member_social',
+              isConnected: true,
+              lastUsedAt: new Date(),
+            },
+            { upsert: true, new: true }
+          );
+          logger.info({ userId, linkedinId: profile.sub }, 'LinkedIn connection saved for publishing');
+        } catch (error: any) {
+          logger.error({ error: error.message, userId }, 'Failed to save LinkedIn connection');
+          return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=save_failed`);
+        }
+
+        return res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=connected`);
+      }
+
+      // ───────── ONBOARDING FLOW (existing) ─────────
+      logger.info({ userId }, 'Processing LinkedIn callback for ONBOARDING flow');
 
       const user = await User.findById(userId);
       if (!user) {
@@ -108,7 +186,7 @@ export function createLinkedInRouter(
     } catch (error: any) {
       logger.error({ error: error.message }, 'LinkedIn OAuth callback failed');
       const clientUrl = getClientUrl();
-      res.redirect(`${clientUrl}/onboarding?linkedin=error&reason=internal_error`);
+      res.redirect(`${clientUrl}/dashboard/publishing-center?linkedin=error&reason=internal_error`);
     }
   });
 
