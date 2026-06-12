@@ -66,9 +66,14 @@ export default async function middleware(req: NextRequest) {
   const onboardingMatch = pathname.startsWith('/onboarding');
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/me`, {
       headers: { Cookie: `session=${sessionCookie}` },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!res.ok) {
       const signInUrl = new URL('/sign-up', req.url);
@@ -83,9 +88,13 @@ export default async function middleware(req: NextRequest) {
     const data = await res.json();
     if (data.user) {
       try {
+        const stateController = new AbortController();
+        const stateTimeout = setTimeout(() => stateController.abort(), 5000);
         const stateRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/onboarding/state`, {
           headers: { Cookie: `session=${sessionCookie}` },
+          signal: stateController.signal,
         });
+        clearTimeout(stateTimeout);
         if (stateRes.ok) {
           const stateData = await stateRes.json();
           if (stateData.state?.status !== 'completed' && stateData.state?.currentStep) {
