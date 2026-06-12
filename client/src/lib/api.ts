@@ -706,4 +706,9 @@ export const api = {
     getSection: (section: string) =>
       fetchAPI<any>(`/report/section/${section}`),
   },
+
+  dashboard: {
+    get: () =>
+      fetchAPI<any>('/dashboard'),
+  },
 };
