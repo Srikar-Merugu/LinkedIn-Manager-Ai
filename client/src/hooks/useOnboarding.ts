@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -46,7 +45,6 @@ const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
 
 export function useOnboarding() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
   const isSignedIn = isAuthenticated;
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [completedSteps, setCompletedSteps] = useState<OnboardingStep[]>([]);
@@ -202,12 +200,13 @@ export function useOnboarding() {
   const finishOnboarding = useCallback(async () => {
     try {
       await api.onboarding.markRedirected();
-    } catch {
-      // Silently handle
+    } catch (e) {
+      console.warn('markRedirected failed, navigating anyway:', e);
     }
     setOnboardingComplete(true);
-    router.replace('/dashboard');
-  }, [router]);
+    // Use window.location for a full page load to avoid middleware race condition
+    window.location.href = '/dashboard';
+  }, []);
 
   return {
     currentStep,

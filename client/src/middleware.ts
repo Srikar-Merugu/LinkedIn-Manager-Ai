@@ -97,7 +97,8 @@ export default async function middleware(req: NextRequest) {
         clearTimeout(stateTimeout);
         if (stateRes.ok) {
           const stateData = await stateRes.json();
-          if (stateData.state?.status !== 'completed' && stateData.state?.currentStep) {
+          const isCompleted = stateData.state?.status === 'completed' || stateData.state?.onboardingCompleteRedirected;
+          if (!isCompleted && stateData.state?.currentStep && stateData.state?.currentStep !== 'results') {
             return NextResponse.redirect(new URL('/onboarding', req.url));
           }
         }
