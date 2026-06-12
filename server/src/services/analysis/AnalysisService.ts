@@ -112,7 +112,11 @@ export class AnalysisService {
     // If report is older than 24 hours or missing key data, regenerate
     const age = Date.now() - new Date(report.generatedAt).getTime();
     const hasAllData = report.strengths?.length > 0 && report.contentPillars?.length > 0 && report.brandDNA?.archetype;
-    if (age > 24 * 60 * 60 * 1000 || !hasAllData) {
+    const hasNewFields = report.profileScore !== undefined && report.profileScore > 0
+      && report.profileHealth?.length > 0
+      && report.aiSummary;
+
+    if (age > 24 * 60 * 60 * 1000 || !hasAllData || !hasNewFields) {
       return this.generateFullReport(userId);
     }
 
