@@ -734,4 +734,21 @@ export const api = {
     get: () =>
       fetchAPI<any>('/content-intelligence'),
   },
+
+  contentChallenge: {
+    get: () =>
+      fetchAPI<any>('/content-challenge'),
+    start: (data: { topics: string[]; postsPerWeek: number; postingDays: string[]; postingTime: string; reviewMode: boolean }) =>
+      fetchAPI<any>('/content-challenge/start', { method: 'POST', body: JSON.stringify(data) }),
+    generateToday: () =>
+      fetchAPI<any>('/content-challenge/generate-today', { method: 'POST' }),
+    generateBatch: (days: number) =>
+      fetchAPI<any>('/content-challenge/generate-batch', { method: 'POST', body: JSON.stringify({ days }) }),
+    pause: () =>
+      fetchAPI<any>('/content-challenge/pause', { method: 'POST' }),
+    resume: () =>
+      fetchAPI<any>('/content-challenge/resume', { method: 'POST' }),
+    delete: () =>
+      fetchAPI<any>('/content-challenge', { method: 'DELETE' }),
+  },
 };
