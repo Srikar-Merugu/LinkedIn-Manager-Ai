@@ -647,6 +647,23 @@ export const api = {
       fetchAPI<any>(`/ai-manager/status/${userId}`),
   },
 
+  aiCoach: {
+    getContext: () =>
+      fetchAPI<any>('/ai-coach/context'),
+
+    chat: (message: string, sessionId?: string) =>
+      fetchAPI<any>('/ai-coach/chat', { method: 'POST', body: JSON.stringify({ message, sessionId }) }),
+
+    getSessions: () =>
+      fetchAPI<any[]>('/ai-coach/sessions'),
+
+    createSession: () =>
+      fetchAPI<any>('/ai-coach/sessions', { method: 'POST' }),
+
+    getHistory: (sessionId: string) =>
+      fetchAPI<any[]>(`/ai-coach/history/${sessionId}`),
+  },
+
   analytics: {
     ingest: (data: any) =>
       fetchAPI<any>('/analytics/ingest', { method: 'POST', body: JSON.stringify(data) }),

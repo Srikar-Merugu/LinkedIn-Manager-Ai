@@ -1,128 +1,154 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import {
-  MessageCircle, Send, Sparkles, Lightbulb, Calendar,
-  TrendingUp, Zap, CheckCircle2, XCircle, Clock, AlertCircle,
-  ThumbsUp, Bookmark, ChevronRight, Bot, User, RefreshCw,
-  Trash2, List, PenSquare,
+  Bot, User, Send, ChevronDown, ChevronRight, Sparkles, Target,
+  Flame, TrendingUp, Lightbulb, Zap, Award, Code, FileText,
+  Clock, Loader2, AlertTriangle, CheckCircle2, Plus, List,
 } from 'lucide-react';
 
 interface Message {
   _id?: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant';
   content: string;
-  type?: string;
-  metadata?: any;
   createdAt?: string;
 }
 
-export default function AssistantPage() {
+interface UserContext {
+  profile: {
+    name: string; headline: string; location: string; about: string;
+    skills: string[]; certifications: any[]; projects: any[];
+    experience: any[]; education: any[];
+    githubUsername: string; githubLanguages: string[]; githubRepos: number;
+  } | null;
+  scores: any;
+  strengths: any[];
+  weaknesses: any[];
+  contentPillars: any[];
+  brandDNA: any;
+  writingDNA: any;
+  careerBlueprint: any;
+  strategy90Days: any;
+  careerGoals: string[];
+  profileScore: number;
+  contentOpportunities: any[];
+  posts: { total: number; published: number; scheduled: number; drafts: number; recentPosts: any[] };
+  queue: { total: number; items: any[] };
+  challenge: any;
+}
+
+function SidebarSection({ title, icon: Icon, expanded, onToggle, count, children }: {
+  title: string; icon: any; expanded: boolean; onToggle: () => void; count?: number; children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-white/5 last:border-0">
+      <button onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors">
+        <div className="flex items-center gap-2">
+          <Icon className="w-3.5 h-3.5 text-brand-400" />
+          <span className="text-xs font-medium text-surface-200">{title}</span>
+          {count !== undefined && count > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-brand-500/10 text-brand-400">{count}</span>
+          )}
+        </div>
+        <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.15 }}>
+          <ChevronDown className="w-3.5 h-3.5 text-surface-500" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+            <div className="px-4 pb-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TagList({ items, max = 8 }: { items: string[]; max?: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? items : items.slice(0, max);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {displayed.map((item, i) => (
+        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/5 text-surface-400">
+          {item}
+        </span>
+      ))}
+      {items.length > max && (
+        <button onClick={() => setShowAll(!showAll)} className="text-[10px] text-brand-400 hover:text-brand-300">
+          {showAll ? 'Show less' : `+${items.length - max}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function AICoachPage() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [proactiveRecs, setProactiveRecs] = useState<any[]>([]);
-  const [suggestedTasks, setSuggestedTasks] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chat' | 'recs' | 'tasks'>('chat');
   const [sessions, setSessions] = useState<any[]>([]);
   const [showSessions, setShowSessions] = useState(false);
+  const [context, setContext] = useState<UserContext | null>(null);
+  const [contextLoading, setContextLoading] = useState(true);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [expandedPanels, setExpandedPanels] = useState<Record<string, boolean>>({
+    profile: true, pillars: false, strategy: false, challenge: false, strengths: false, posts: false,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const userId = user?.id || '';
 
-  useEffect(() => {
-    if (userId) {
-      loadSessions();
-      loadProactive();
-      loadTasks();
+  const loadContext = useCallback(async () => {
+    if (!userId) return;
+    setContextLoading(true);
+    setContextError(null);
+    try {
+      const data = await api.aiCoach.getContext();
+      setContext(data);
+    } catch (err) {
+      setContextError(err instanceof Error ? err.message : 'Failed to load profile');
+    } finally {
+      setContextLoading(false);
     }
   }, [userId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
+    if (!userId) return;
     try {
-      const data = await api.aiManager.getSessions(userId);
+      const data = await api.aiCoach.getSessions();
       setSessions(data || []);
-      if (data?.length > 0 && !sessionId) {
-        setSessionId(data[0]._id);
-        loadHistory(data[0]._id);
-      }
     } catch { /* ignore */ }
-  }
+  }, [userId]);
 
-  async function loadHistory(sid: string) {
-    try {
-      const data = await api.aiManager.getHistory(sid);
-      setMessages(data || []);
-    } catch { /* ignore */ }
-  }
-
-  async function loadProactive() {
-    try {
-      const data = await api.aiManager.getProactive(userId);
-      setProactiveRecs(data || []);
-      const recs = await api.aiManager.getRecommendations(userId);
-      setRecommendations(recs || []);
-    } catch { /* ignore */ }
-  }
-
-  async function loadTasks() {
-    try {
-      const data = await api.aiManager.getTasks(userId);
-      setSuggestedTasks(data || []);
-    } catch { /* ignore */ }
-  }
+  useEffect(() => { loadContext(); loadSessions(); }, [loadContext, loadSessions]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   async function handleSend() {
-    if (!input.trim() || !userId || loading) return;
-
+    if (!input.trim() || loading) return;
     const userMessage = input.trim();
     setInput('');
     setLoading(true);
-    setShowSuggestions(false);
 
     setMessages(prev => [...prev, { role: 'user', content: userMessage, _id: Date.now().toString() }]);
 
     try {
-      const data = await api.aiManager.chat(userId, userMessage, sessionId || undefined);
+      const data = await api.aiCoach.chat(userMessage, sessionId || undefined);
       setSessionId(data.sessionId);
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response, _id: Date.now().toString(), metadata: { insights: data.insights, actions: data.actions } }]);
-
-      if (data.recommendations?.length > 0) {
-        setRecommendations(prev => [...data.recommendations, ...prev]);
-      }
-      if (data.suggestedQuestions) {
-        setShowSuggestions(true);
-      }
-      loadProactive();
-      loadTasks();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response, _id: (Date.now() + 1).toString() }]);
     } catch (error: any) {
-      let errorContent = 'I encountered an error processing your request. Please try again.';
-      if (error.action === 'complete_onboarding') {
-        errorContent = 'Please complete onboarding first to generate your analysis report. The AI coach needs your LinkedIn analysis, voice profile, and content strategy to provide personalized responses.';
-      } else if (error.details) {
-        errorContent = error.details;
-      } else if (error.statusCode === 401) {
-        errorContent = 'Authentication required. Please log in again.';
-      } else if (error.statusCode === 503) {
-        errorContent = 'The AI coach is temporarily unavailable. Please try again in a few minutes.';
-      } else if (error.message) {
-        errorContent = error.message;
-      }
-      setMessages(prev => [...prev, { role: 'assistant', content: errorContent, _id: Date.now().toString() }]);
+      const errorContent = error.message || 'Failed to get response. Please try again.';
+      setMessages(prev => [...prev, { role: 'assistant', content: `**Error:** ${errorContent}`, _id: (Date.now() + 1).toString() }]);
     } finally {
       setLoading(false);
     }
@@ -130,90 +156,47 @@ export default function AssistantPage() {
 
   async function handleNewSession() {
     try {
-      const data = await api.aiManager.createSession(userId);
+      const data = await api.aiCoach.createSession();
       setSessionId(data._id);
       setMessages([]);
-      setShowSuggestions(true);
       loadSessions();
     } catch { /* ignore */ }
   }
 
   async function switchSession(sid: string) {
     setSessionId(sid);
-    setMessages([]);
     setLoading(true);
-    await loadHistory(sid);
+    try {
+      const history = await api.aiCoach.getHistory(sid);
+      setMessages(history || []);
+    } catch { /* ignore */ }
     setLoading(false);
     setShowSessions(false);
-    setShowSuggestions(false);
-  }
-
-  async function handleQuickAction(action: string, params?: any) {
-    switch (action) {
-      case 'generate_post':
-        setInput('I want to create a new post. Can you help me?');
-        break;
-      case 'regenerate_strategy':
-        setInput('Review and regenerate my content strategy.');
-        break;
-      case 'view_calendar':
-        setInput('Show me my content calendar.');
-        break;
-      case 'mine_opportunities':
-        setInput('Find new opportunities for me.');
-        break;
-      case 'review_analytics':
-        setInput('How is my content performing?');
-        break;
-      case 'update_profile':
-        setInput('Review my LinkedIn profile and suggest improvements.');
-        break;
-      default:
-        if (params?.topic) {
-          setInput(`Create a post about "${params.topic}"`);
-        }
-    }
-    inputRef.current?.focus();
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }
 
-  function formatTime(dateStr?: string) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return d.toLocaleDateString();
+  function togglePanel(s: string) {
+    setExpandedPanels(prev => ({ ...prev, [s]: !prev[s] }));
   }
 
   const suggestedQuestions = [
     'What should I post today?',
-    'Give me content ideas for this week',
+    'Give me content ideas based on my projects',
     'Review my content strategy',
-    'Rewrite this post to sound more like me',
-    'Generate content for my calendar topic',
+    'How can I grow faster on LinkedIn?',
+    'Rewrite one of my recent posts',
+    'What are my biggest content gaps?',
   ];
 
-  const quickActions = [
-    { label: 'Generate Post', icon: Sparkles, action: 'generate_post' },
-    { label: 'Content Ideas', icon: Lightbulb, action: 'review_analytics' },
-    { label: 'Review Strategy', icon: TrendingUp, action: 'regenerate_strategy' },
-    { label: 'Rewrite Post', icon: PenSquare, action: 'update_profile' },
-    { label: 'Calendar Topic', icon: Calendar, action: 'view_calendar' },
-  ];
-
-  const activeRecs = recommendations.filter((r: any) => r.status === 'active');
+  const today = new Date();
+  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
 
   return (
     <div className="h-[calc(100vh-6rem)] flex gap-4">
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col glass-card rounded-2xl border border-white/5 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
@@ -223,34 +206,32 @@ export default function AssistantPage() {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-surface-100">AI Content Coach</h2>
-              <p className="text-[10px] text-surface-500">LinkedIn Consistency Coach</p>
+              <p className="text-[10px] text-surface-500">
+                {context?.profile?.name ? `Personalized for ${context.profile.name}` : 'Loading your profile...'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowSessions(!showSessions)}
-              className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs text-surface-400 hover:text-surface-200"
-            >
+              className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs text-surface-400 hover:text-surface-200 transition-colors">
               <List className="w-3 h-3 inline mr-1" />Sessions
             </button>
             <button onClick={handleNewSession}
-              className="px-3 py-1.5 rounded-lg bg-brand-500/10 text-brand-400 text-xs font-medium hover:bg-brand-500/20"
-            >
-              + New Chat
+              className="px-3 py-1.5 rounded-lg bg-brand-500/10 text-brand-400 text-xs font-medium hover:bg-brand-500/20 transition-colors">
+              + New
             </button>
           </div>
         </div>
 
-        {/* Sessions Panel */}
+        {/* Sessions dropdown */}
         {showSessions && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="border-b border-white/5 bg-white/[0.01]">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            className="border-b border-white/5 bg-white/[0.01]">
             <div className="p-3 space-y-1 max-h-40 overflow-y-auto">
               {sessions.map((s: any) => (
                 <button key={s._id} onClick={() => switchSession(s._id)}
-                  className={cn(
-                    'w-full flex items-center justify-between p-2 rounded-lg text-xs transition-all',
-                    sessionId === s._id ? 'bg-brand-500/10 text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.03]'
-                  )}
-                >
+                  className={cn('w-full flex items-center justify-between p-2 rounded-lg text-xs transition-all',
+                    sessionId === s._id ? 'bg-brand-500/10 text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.03]')}>
                   <span className="truncate max-w-[200px]">{s.title}</span>
                   <span className="text-surface-600">{s.messageCount} msgs</span>
                 </button>
@@ -264,60 +245,53 @@ export default function AssistantPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <Bot className="w-16 h-16 text-surface-600 mb-4" />
-              <h3 className="text-lg font-semibold text-surface-200 mb-2">Your Content Coach is Ready</h3>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500/20 to-accent-500/20 border border-brand-500/10 flex items-center justify-center mb-4">
+                <Sparkles className="w-8 h-8 text-brand-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-surface-200 mb-1">
+                {context?.profile?.name ? `Welcome, ${context.profile.name.split(' ')[0]}` : 'Your AI Coach is Ready'}
+              </h3>
               <p className="text-sm text-surface-500 max-w-md mb-6">
-                I have access to your LinkedIn analysis, voice profile, content strategy, and calendar.
-                Ask me anything about creating consistent, personalized content.
+                I have access to your complete profile, projects, skills, content strategy, and analytics.
+                Every response is personalized to your career and content goals.
               </p>
 
-              {showSuggestions && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
-                  {suggestedQuestions.map((q, i) => (
-                    <button key={i} onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-surface-400 hover:text-surface-200 hover:bg-white/[0.06] text-left transition-all"
-                    >
-                      <ChevronRight className="w-3 h-3 flex-shrink-0 text-brand-500" />
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
+                {suggestedQuestions.map((q, i) => (
+                  <button key={i} onClick={() => { setInput(q); inputRef.current?.focus(); }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-xs text-surface-400 hover:text-surface-200 hover:bg-white/[0.06] text-left transition-all">
+                    <ChevronRight className="w-3 h-3 flex-shrink-0 text-brand-500" />
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           {messages.map((msg, i) => (
-            <motion.div key={msg._id || i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}
-            >
+            <motion.div key={msg._id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
               {msg.role === 'assistant' && (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center flex-shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
               )}
-
-              <div className={cn(
-                'max-w-[80%] rounded-2xl px-5 py-3',
+              <div className={cn('max-w-[80%] rounded-2xl px-5 py-3',
                 msg.role === 'user'
                   ? 'bg-brand-500/10 border border-brand-500/20 text-surface-200'
-                  : 'bg-white/[0.03] border border-white/5 text-surface-300'
-              )}>
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                {msg.metadata?.insights?.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-white/5 space-y-1">
-                    {msg.metadata.insights.map((insight: string, j: number) => (
-                      <div key={j} className="flex items-start gap-2 text-xs text-surface-500">
-                        <Lightbulb className="w-3 h-3 mt-0.5 text-amber-400 flex-shrink-0" />
-                        {insight}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[10px] text-surface-600 mt-2">{msg.createdAt ? formatTime(msg.createdAt) : ''}</p>
+                  : 'bg-white/[0.03] border border-white/5 text-surface-300')}>
+                <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {msg.content.split('\n').map((line, j) => {
+                    if (line.startsWith('**') && line.endsWith('**')) {
+                      return <p key={j} className="font-semibold text-surface-200 mt-2 first:mt-0">{line.replace(/\*\*/g, '')}</p>;
+                    }
+                    if (line.startsWith('- ') || line.startsWith('• ')) {
+                      return <p key={j} className="ml-3 text-surface-400">{line}</p>;
+                    }
+                    return <p key={j} className={j > 0 ? 'mt-1.5' : ''}>{line}</p>;
+                  })}
+                </div>
               </div>
-
               {msg.role === 'user' && (
                 <div className="w-8 h-8 rounded-full bg-white/[0.05] flex items-center justify-center flex-shrink-0 mt-1">
                   <User className="w-4 h-4 text-surface-400" />
@@ -350,115 +324,197 @@ export default function AssistantPage() {
             <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
               placeholder="Ask me anything about your LinkedIn content..."
               rows={1}
-              className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-surface-200 placeholder:text-surface-600 resize-none focus:outline-none focus:border-brand-500/30"
-            />
+              className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-surface-200 placeholder:text-surface-600 resize-none focus:outline-none focus:border-brand-500/30 transition-colors" />
             <button onClick={handleSend} disabled={!input.trim() || loading}
-              className={cn(
-                'px-4 py-3 rounded-xl transition-all flex items-center justify-center',
-                input.trim() && !loading ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-white/[0.03] text-surface-600'
-              )}
-            >
+              className={cn('px-4 py-3 rounded-xl transition-all flex items-center justify-center',
+                input.trim() && !loading ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-white/[0.03] text-surface-600')}>
               <Send className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Side Panel */}
-      <div className="w-80 flex flex-col gap-4">
-        {/* Quick Actions */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5">
-          <h3 className="text-xs font-semibold text-surface-300 mb-3 uppercase tracking-wider">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {quickActions.map((qa, i) => (
-              <button key={i} onClick={() => handleQuickAction(qa.action)}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
-              >
-                <qa.icon className="w-4 h-4 text-brand-400" />
-                <span className="text-[10px] text-surface-400">{qa.label}</span>
-              </button>
-            ))}
+      {/* Right Sidebar — AI Memory Panel */}
+      <div className="w-80 flex flex-col gap-0 glass-card rounded-2xl border border-white/5 overflow-hidden overflow-y-auto">
+        {contextLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-brand-400 animate-spin" />
           </div>
-        </div>
-
-        {/* Active Recommendations */}
-        {activeRecs.length > 0 && (
-          <div className="glass-card rounded-2xl p-4 border border-white/5">
-            <h3 className="text-xs font-semibold text-surface-300 mb-3 uppercase tracking-wider">
-              Recommendations ({activeRecs.length})
-            </h3>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {activeRecs.slice(0, 5).map((rec: any, i: number) => (
-                <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/5">
-                  <div className="flex items-start gap-2">
-                    <Lightbulb className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
+        ) : contextError ? (
+          <div className="p-4 text-center">
+            <AlertTriangle className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+            <p className="text-xs text-surface-400">{contextError}</p>
+          </div>
+        ) : context ? (
+          <>
+            {/* Profile Overview */}
+            <SidebarSection title="Your Profile" icon={User} expanded={expandedPanels.profile} onToggle={() => togglePanel('profile')}>
+              {context.profile && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-surface-200">{context.profile.name}</p>
+                  <p className="text-[10px] text-surface-500 leading-relaxed">{context.profile.headline}</p>
+                  {context.profile.location && (
+                    <p className="text-[10px] text-surface-600">{context.profile.location}</p>
+                  )}
+                  {context.profile.skills.length > 0 && (
                     <div>
-                      <p className="text-xs text-surface-300 font-medium">{rec.title}</p>
-                      <p className="text-[10px] text-surface-500 mt-0.5">{rec.description?.substring(0, 80)}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className={cn(
-                          'px-1.5 py-0.5 rounded text-[9px] font-medium uppercase',
-                          rec.priority === 'critical' ? 'bg-red-500/10 text-red-400' :
-                          rec.priority === 'high' ? 'bg-amber-500/10 text-amber-400' :
-                          'bg-surface-500/10 text-surface-400'
-                        )}>
-                          {rec.priority}
-                        </span>
-                        {rec.suggestedAction?.type && (
-                          <button onClick={() => handleQuickAction(rec.suggestedAction.type, rec.suggestedAction.params)}
-                            className="text-[9px] text-brand-400 hover:text-brand-300"
-                          >
-                            Take Action
-                          </button>
-                        )}
-                      </div>
+                      <p className="text-[9px] uppercase tracking-wider text-surface-600 mb-1">Skills</p>
+                      <TagList items={context.profile.skills} max={6} />
+                    </div>
+                  )}
+                  {context.profile.projects.length > 0 && (
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-surface-600 mb-1">Projects</p>
+                      <TagList items={context.profile.projects.map((p: any) => typeof p === 'string' ? p : p.name || p.title || 'Project')} max={4} />
+                    </div>
+                  )}
+                  {context.profile.certifications.length > 0 && (
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-surface-600 mb-1">Certifications</p>
+                      <TagList items={context.profile.certifications.map((c: any) => typeof c === 'string' ? c : c.name || c.title || 'Cert')} max={4} />
+                    </div>
+                  )}
+                  {context.profile.githubUsername && (
+                    <div className="flex items-center gap-2 text-[10px] text-surface-500">
+                      <Code className="w-3 h-3" />
+                      <span>{context.profile.githubUsername} — {context.profile.githubRepos} repos</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </SidebarSection>
+
+            {/* Content Pillars */}
+            {context.contentPillars.length > 0 && (
+              <SidebarSection title="Content Pillars" icon={Target} expanded={expandedPanels.pillars} onToggle={() => togglePanel('pillars')}
+                count={context.contentPillars.length}>
+                <div className="space-y-2">
+                  {context.contentPillars.map((p: any, i: number) => (
+                    <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/5">
+                      <p className="text-xs font-medium text-surface-200">{p.name}</p>
+                      <p className="text-[10px] text-surface-500 mt-0.5 line-clamp-2">{p.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </SidebarSection>
+            )}
+
+            {/* Strategy */}
+            {context.strategy90Days && (
+              <SidebarSection title="90-Day Strategy" icon={TrendingUp} expanded={expandedPanels.strategy} onToggle={() => togglePanel('strategy')}>
+                <div className="space-y-2">
+                  <p className="text-[10px] text-surface-400 line-clamp-3">{context.strategy90Days.narrative}</p>
+                  {context.strategy90Days.monthlyPlans?.map((m: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px]">
+                      <span className="text-brand-400 font-medium">M{m.month}</span>
+                      <span className="text-surface-500">{m.phase}: {m.focus}</span>
+                    </div>
+                  ))}
+                  {context.strategy90Days.growthGoals?.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[9px] uppercase tracking-wider text-surface-600 mb-1">Goals</p>
+                      {context.strategy90Days.growthGoals.map((g: any, i: number) => (
+                        <p key={i} className="text-[10px] text-surface-500">{g.goal} — {g.target} {g.metric}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SidebarSection>
+            )}
+
+            {/* Challenge Progress */}
+            {context.challenge && (
+              <SidebarSection title="Challenge Progress" icon={Flame} expanded={expandedPanels.challenge} onToggle={() => togglePanel('challenge')}>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={cn('text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full',
+                      context.challenge.status === 'active' ? 'bg-green-500/10 text-green-400' :
+                      context.challenge.status === 'paused' ? 'bg-amber-500/10 text-amber-400' :
+                      'bg-surface-800 text-surface-500')}>
+                      {context.challenge.status}
+                    </span>
+                    <span className="text-[10px] text-surface-400">
+                      Day {context.challenge.currentDay || 0}/{context.challenge.totalDays || 90}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-surface-800 overflow-hidden">
+                    <motion.div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${((context.challenge.currentDay || 0) / (context.challenge.totalDays || 90)) * 100}%` }}
+                      transition={{ duration: 1 }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
+                    <div className="p-1.5 rounded bg-white/[0.02]">
+                      <p className="text-xs font-bold text-surface-100">{context.challenge.stats?.postsGenerated || 0}</p>
+                      <p className="text-[8px] text-surface-600">Generated</p>
+                    </div>
+                    <div className="p-1.5 rounded bg-white/[0.02]">
+                      <p className="text-xs font-bold text-green-400">{context.challenge.stats?.postsPublished || 0}</p>
+                      <p className="text-[8px] text-surface-600">Published</p>
+                    </div>
+                    <div className="p-1.5 rounded bg-white/[0.02]">
+                      <p className="text-xs font-bold text-amber-400">{context.challenge.stats?.currentStreak || 0}d</p>
+                      <p className="text-[8px] text-surface-600">Streak</p>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </SidebarSection>
+            )}
 
-        {/* Proactive Recommendations */}
-        {proactiveRecs.length > 0 && (
-          <div className="glass-card rounded-2xl p-4 border border-white/5">
-            <h3 className="text-xs font-semibold text-surface-300 mb-3 uppercase tracking-wider">Proactive Insights</h3>
-            <div className="space-y-2">
-              {proactiveRecs.slice(0, 4).map((rec: any, i: number) => (
-                <button key={i} onClick={() => handleQuickAction(rec.action)}
-                  className="w-full flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] text-left"
-                >
-                  <Zap className="w-3 h-3 text-brand-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-surface-300 font-medium">{rec.title}</p>
-                    <p className="text-[10px] text-surface-500">{rec.description?.substring(0, 70)}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+            {/* Strengths */}
+            {context.strengths.length > 0 && (
+              <SidebarSection title="Your Strengths" icon={Award} expanded={expandedPanels.strengths} onToggle={() => togglePanel('strengths')}
+                count={context.strengths.length}>
+                <div className="space-y-1.5">
+                  {context.strengths.slice(0, 5).map((s: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3 h-3 text-green-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-medium text-surface-300">{s.title}</p>
+                        <p className="text-[9px] text-surface-600">{s.category}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SidebarSection>
+            )}
 
-        {/* Suggested Tasks */}
-        {suggestedTasks.length > 0 && (
-          <div className="glass-card rounded-2xl p-4 border border-white/5">
-            <h3 className="text-xs font-semibold text-surface-300 mb-3 uppercase tracking-wider">Suggested Tasks</h3>
-            <div className="space-y-1.5">
-              {suggestedTasks.slice(0, 5).map((task: any, i: number) => (
-                <button key={i} onClick={() => handleQuickAction(task.action)}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/[0.03] text-left"
-                >
-                  <div className={cn(
-                    'w-1.5 h-1.5 rounded-full',
-                    task.priority === 'critical' ? 'bg-red-500' :
-                    task.priority === 'high' ? 'bg-amber-500' :
-                    task.priority === 'medium' ? 'bg-brand-500' : 'bg-surface-500'
-                  )} />
-                  <span className="text-xs text-surface-400">{task.title}</span>
-                </button>
-              ))}
+            {/* Recent Posts */}
+            {context.posts.recentPosts.length > 0 && (
+              <SidebarSection title="Recent Posts" icon={FileText} expanded={expandedPanels.posts} onToggle={() => togglePanel('posts')}
+                count={context.posts.total}>
+                <div className="space-y-1.5">
+                  {context.posts.recentPosts.map((p: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-[10px]">
+                      <div className={cn('w-1.5 h-1.5 rounded-full',
+                        p.status === 'published' ? 'bg-green-500' :
+                        p.status === 'scheduled' ? 'bg-purple-500' :
+                        p.status === 'draft' ? 'bg-amber-500' : 'bg-surface-500')} />
+                      <span className="text-surface-400 truncate flex-1">{p.title || 'Untitled'}</span>
+                      <span className="text-surface-600">{p.contentType}</span>
+                    </div>
+                  ))}
+                </div>
+              </SidebarSection>
+            )}
+
+            {/* Quick Stats */}
+            <div className="p-4 border-t border-white/5">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                  <p className="text-sm font-bold text-brand-400">{context.profileScore || 0}</p>
+                  <p className="text-[8px] text-surface-600">Profile Score</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                  <p className="text-sm font-bold text-green-400">{context.posts.published}</p>
+                  <p className="text-[8px] text-surface-600">Posts Published</p>
+                </div>
+              </div>
             </div>
+          </>
+        ) : (
+          <div className="p-4 text-center">
+            <p className="text-xs text-surface-500">Complete onboarding to unlock AI coaching</p>
           </div>
         )}
       </div>
