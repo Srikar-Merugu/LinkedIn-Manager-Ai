@@ -729,4 +729,9 @@ export const api = {
     get: () =>
       fetchAPI<any>('/dashboard'),
   },
+
+  contentIntelligence: {
+    get: () =>
+      fetchAPI<any>('/content-intelligence'),
+  },
 };
