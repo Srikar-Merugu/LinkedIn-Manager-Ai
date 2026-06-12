@@ -16,6 +16,7 @@ export interface LinkedInProfileData {
   education: { schoolName: string; degree: string; fieldOfStudy: string; startDate: string; endDate: string }[];
   skills: string[];
   certifications: { name: string; authority: string; url: string }[];
+  projects: { name: string; description: string; url: string }[];
   featured: { title: string; description: string; url: string }[];
   connections: number;
 }
@@ -96,6 +97,11 @@ export class ProfileDataExtractor {
           name: c.name || '',
           authority: c.authority || '',
           url: c.url || '',
+        })),
+        projects: (pdfParsedData.projects || []).map((p: any) => ({
+          name: p.name || p.title || '',
+          description: p.description || '',
+          url: p.url || p.link || '',
         })),
         featured: (pdfParsedData.featured || []).map((f: any) => ({
           title: f.title || '',
@@ -334,6 +340,7 @@ export class ProfileDataExtractor {
       education: [],
       skills: [],
       certifications: [],
+      projects: [],
       featured: [],
       connections: 0,
     };

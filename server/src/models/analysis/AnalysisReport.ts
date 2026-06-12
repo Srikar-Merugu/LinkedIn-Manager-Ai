@@ -19,6 +19,7 @@ export interface IAnalysisReport extends Document {
     education: any[];
     skills: string[];
     certifications: any[];
+    projects: any[];
     industry?: string;
     connections?: string;
     rawText?: string;
@@ -150,6 +151,7 @@ const AnalysisReportSchema = new Schema<IAnalysisReport>({
     education: { type: [Schema.Types.Mixed] as any[], default: [] },
     skills: { type: [String], default: [] },
     certifications: { type: [Schema.Types.Mixed] as any[], default: [] },
+    projects: { type: [Schema.Types.Mixed] as any[], default: [] },
     industry: String,
     connections: { type: String, default: '' },
     rawText: { type: String, default: '' },

@@ -189,7 +189,7 @@ export class AnalysisService {
   }
 
   private emptyLinkedInData(): any {
-    return { username: '', connected: false, headline: '', about: '', experience: [], education: [], skills: [], industry: '', location: '' };
+    return { username: '', connected: false, headline: '', about: '', experience: [], education: [], skills: [], certifications: [], projects: [], industry: '', location: '' };
   }
 
   private emptyGitHubData(): any {
@@ -328,8 +328,10 @@ export class AnalysisService {
 
   private generateStrengths(resumeData: any, linkedinData: any, githubData: any, scores: any): any[] {
     const strengths: any[] = [];
-    const skills = resumeData?.skills || [];
-    const experience = resumeData?.experience || [];
+    const skills = [...new Set([...(linkedinData?.skills || []), ...(resumeData?.skills || [])])];
+    const experience = [...(linkedinData?.experience || []), ...(resumeData?.experience || [])];
+    const allCerts = [...(linkedinData?.certifications || []), ...(resumeData?.certifications || [])];
+    const allProjects = [...(linkedinData?.projects || []), ...(resumeData?.projects || [])];
 
     if (experience.length >= 5) strengths.push({ title: 'Extensive Work Experience', category: 'Experience', description: `${experience.length} positions with ${resumeData.totalExperienceYears || 0} years of experience`, impact: 'high', score: Math.min(100, experience.length * 15), evidence: experience.slice(0, 3).map((e: any) => `${e.title || ''} at ${e.organization || ''}`) });
     else if (experience.length >= 3) strengths.push({ title: 'Solid Work Experience', category: 'Experience', description: `${experience.length} positions with diverse responsibilities`, impact: 'medium', score: Math.min(100, experience.length * 20), evidence: experience.map((e: any) => `${e.title || ''}`) });
@@ -348,22 +350,24 @@ export class AnalysisService {
     if (linkedinData?.connected) strengths.push({ title: 'Active LinkedIn Presence', category: 'Visibility', description: 'LinkedIn profile connected for professional networking', impact: 'medium', score: 60, evidence: ['LinkedIn profile active'] });
     if (githubData?.connected) strengths.push({ title: 'GitHub Portfolio', category: 'Technical', description: 'Code portfolio showcasing technical abilities', impact: 'high', score: 70, evidence: ['GitHub profile connected'] });
     if (resumeData?.education?.length > 0) strengths.push({ title: 'Educational Background', category: 'Education', description: 'Formal education providing theoretical foundation', impact: 'medium', score: 50, evidence: resumeData.education.slice(0, 2).map((e: any) => `${e.degree || ''} - ${e.institution || ''}`) });
-    if (resumeData?.certifications?.length > 0) strengths.push({ title: 'Industry Certifications', category: 'Credentials', description: `${resumeData.certifications.length} certifications validating expertise`, impact: 'high', score: Math.min(100, resumeData.certifications.length * 20 + 40), evidence: resumeData.certifications.slice(0, 3).map((c: any) => c.name || c) });
-    if (resumeData?.projects?.length > 0) strengths.push({ title: 'Featured Projects', category: 'Portfolio', description: `${resumeData.projects.length} projects demonstrating practical skills`, impact: 'high', score: Math.min(100, resumeData.projects.length * 15 + 30), evidence: resumeData.projects.slice(0, 3).map((p: any) => p.name || p.title || 'Project') });
+    if (allCerts.length > 0) strengths.push({ title: 'Industry Certifications', category: 'Credentials', description: `${allCerts.length} certifications validating expertise`, impact: 'high', score: Math.min(100, allCerts.length * 20 + 40), evidence: allCerts.slice(0, 3).map((c: any) => c.name || c) });
+    if (allProjects.length > 0) strengths.push({ title: 'Featured Projects', category: 'Portfolio', description: `${allProjects.length} projects demonstrating practical skills`, impact: 'high', score: Math.min(100, allProjects.length * 15 + 30), evidence: allProjects.slice(0, 3).map((p: any) => p.name || p.title || 'Project') });
 
     return strengths.slice(0, 8);
   }
 
   private generateWeaknesses(resumeData: any, linkedinData: any, githubData: any, scores: any): any[] {
     const weaknesses: any[] = [];
-    const skills = resumeData?.skills || [];
-    const experience = resumeData?.experience || [];
+    const skills = [...new Set([...(linkedinData?.skills || []), ...(resumeData?.skills || [])])];
+    const experience = [...(linkedinData?.experience || []), ...(resumeData?.experience || [])];
+    const allCerts = [...(linkedinData?.certifications || []), ...(resumeData?.certifications || [])];
+    const allProjects = [...(linkedinData?.projects || []), ...(resumeData?.projects || [])];
 
     if (!linkedinData?.connected) weaknesses.push({ title: 'LinkedIn Profile Not Connected', category: 'Visibility', description: 'Your LinkedIn profile is not connected, limiting networking opportunities', impact: 'high', score: 20, evidence: ['Connect your LinkedIn profile'] });
     if (!githubData?.connected) weaknesses.push({ title: 'GitHub Profile Not Connected', category: 'Technical', description: 'Your GitHub portfolio is not connected', impact: 'medium', score: 30, evidence: ['Connect your GitHub profile'] });
     if (!resumeData?.summary) weaknesses.push({ title: 'No Professional Summary', category: 'Profile', description: 'Missing a compelling professional summary', impact: 'medium', score: 35, evidence: ['Add a professional summary to your resume'] });
     if (skills.length < 5) weaknesses.push({ title: 'Limited Skills Listed', category: 'Skills', description: `Only ${skills.length} skills listed — add more to showcase your breadth`, impact: 'medium', score: 40, evidence: ['Add more skills to your profile'] });
-    if (resumeData?.projects?.length === 0) weaknesses.push({ title: 'No Featured Projects', category: 'Portfolio', description: 'No projects listed to showcase practical abilities', impact: 'high', score: 25, evidence: ['Add your top projects'] });
+    if (allProjects.length === 0) weaknesses.push({ title: 'No Featured Projects', category: 'Portfolio', description: 'No projects listed to showcase practical abilities', impact: 'high', score: 25, evidence: ['Add your top projects'] });
     if (experience.length < 2) weaknesses.push({ title: 'Limited Work History', category: 'Experience', description: 'Few positions listed on your profile', impact: 'medium', score: 40, evidence: ['Add more work experience'] });
     if (scores.personalBrand < 30) weaknesses.push({ title: 'Weak Personal Brand', category: 'Branding', description: 'Your personal brand score is low', impact: 'high', score: scores.personalBrand, evidence: ['Build your personal brand through content creation'] });
     if (scores.contentReadiness < 30) weaknesses.push({ title: 'Low Content Readiness', category: 'Content', description: 'Not enough content to start posting consistently', impact: 'medium', score: scores.contentReadiness, evidence: ['Build your content foundation'] });
@@ -636,12 +640,14 @@ export class AnalysisService {
 
   private generateQuickWins(resumeData: any, linkedinData: any, githubData: any, scores: any): any[] {
     const wins: any[] = [];
+    const allCerts = [...(linkedinData?.certifications || []), ...(resumeData?.certifications || [])];
+    const allProjects = [...(linkedinData?.projects || []), ...(resumeData?.projects || [])];
 
     if (!linkedinData?.connected) wins.push({ action: 'Add your LinkedIn profile URL', impact: 'high', effort: 'low', category: 'Visibility' });
     if (!githubData?.connected) wins.push({ action: 'Connect your GitHub profile', impact: 'high', effort: 'low', category: 'Technical' });
-    if (!resumeData?.summary) wins.push({ action: 'Write a professional summary', impact: 'medium', effort: 'low', category: 'Profile' });
-    if (resumeData?.projects?.length === 0) wins.push({ action: 'Add your top 3 projects', impact: 'high', effort: 'medium', category: 'Portfolio' });
-    if (resumeData?.certifications?.length === 0) wins.push({ action: 'Add industry certifications', impact: 'medium', effort: 'high', category: 'Credentials' });
+    if (!resumeData?.summary && !linkedinData?.about) wins.push({ action: 'Write a professional summary', impact: 'medium', effort: 'low', category: 'Profile' });
+    if (allProjects.length === 0) wins.push({ action: 'Add your top 3 projects', impact: 'high', effort: 'medium', category: 'Portfolio' });
+    if (allCerts.length === 0) wins.push({ action: 'Add industry certifications', impact: 'medium', effort: 'high', category: 'Credentials' });
     if (scores.personalBrand < 30) wins.push({ action: 'Write a compelling headline', impact: 'high', effort: 'low', category: 'Branding' });
     if (scores.contentReadiness < 30) wins.push({ action: 'Share your first LinkedIn post', impact: 'high', effort: 'medium', category: 'Content' });
     if (scores.industryAuthority < 30) wins.push({ action: 'Comment on 5 industry posts this week', impact: 'medium', effort: 'low', category: 'Authority' });
@@ -713,6 +719,15 @@ export class AnalysisService {
   private generateProfileHealth(resumeData: any, linkedinData: any, githubData: any): any[] {
     const health: any[] = [];
 
+    const allCertifications = [
+      ...(linkedinData?.certifications || []),
+      ...(resumeData?.certifications || []),
+    ];
+    const allProjects = [
+      ...(linkedinData?.projects || []),
+      ...(resumeData?.projects || []),
+    ];
+
     health.push({
       section: 'Headline',
       status: linkedinData?.headline ? (linkedinData.headline.length > 30 ? 'strong' : 'good') : 'missing',
@@ -733,26 +748,26 @@ export class AnalysisService {
 
     health.push({
       section: 'Skills',
-      status: linkedinData?.skills?.length > 0 ? (linkedinData.skills.length >= 10 ? 'strong' : 'needs_improvement') : 'missing',
+      status: linkedinData?.skills?.length > 0 ? (linkedinData.skills.length >= 5 ? 'strong' : 'needs_improvement') : 'missing',
       details: linkedinData?.skills?.length > 0 ? `${linkedinData.skills.length} skills` : 'No skills listed',
     });
 
     health.push({
-      section: 'Projects',
-      status: resumeData?.projects?.length > 0 ? (resumeData.projects.length >= 3 ? 'strong' : 'good') : 'missing',
-      details: resumeData?.projects?.length > 0 ? `${resumeData.projects.length} projects` : 'No projects featured',
-    });
-
-    health.push({
       section: 'Certifications',
-      status: resumeData?.certifications?.length > 0 ? 'strong' : 'missing',
-      details: resumeData?.certifications?.length > 0 ? `${resumeData.certifications.length} certifications` : 'No certifications',
+      status: allCertifications.length > 0 ? (allCertifications.length >= 3 ? 'strong' : 'good') : 'missing',
+      details: allCertifications.length > 0 ? `${allCertifications.length} certifications` : 'No certifications found',
     });
 
     health.push({
-      section: 'GitHub',
-      status: githubData?.connected ? (githubData.repos >= 5 ? 'strong' : 'good') : 'missing',
-      details: githubData?.connected ? `${githubData.repos} repos` : 'GitHub not connected',
+      section: 'Projects',
+      status: allProjects.length > 0 ? (allProjects.length >= 2 ? 'strong' : 'good') : 'missing',
+      details: allProjects.length > 0 ? `${allProjects.length} projects` : 'No projects found',
+    });
+
+    health.push({
+      section: 'Education',
+      status: linkedinData?.education?.length > 0 ? 'strong' : 'missing',
+      details: linkedinData?.education?.length > 0 ? `${linkedinData.education.length} entries` : 'No education listed',
     });
 
     health.push({
@@ -766,20 +781,24 @@ export class AnalysisService {
 
   private generateMissingSections(resumeData: any, linkedinData: any, githubData: any): any[] {
     const missing: any[] = [];
+    const allCertifications = [...(linkedinData?.certifications || []), ...(resumeData?.certifications || [])];
+    const allProjects = [...(linkedinData?.projects || []), ...(resumeData?.projects || [])];
 
     if (!linkedinData?.about) missing.push({ section: 'About Section', priority: 'high', reason: 'A strong About section improves profile views by 40%' });
     if (!linkedinData?.headline || linkedinData.headline.length < 20) missing.push({ section: 'Headline', priority: 'high', reason: 'Your headline is the first thing recruiters see' });
     if (!linkedinData?.experience?.length) missing.push({ section: 'Work Experience', priority: 'high', reason: 'Experience establishes professional credibility' });
     if (!linkedinData?.skills?.length || linkedinData.skills.length < 5) missing.push({ section: 'Skills', priority: 'medium', reason: 'Skills help you appear in search results' });
-    if (!resumeData?.projects?.length) missing.push({ section: 'Featured Projects', priority: 'high', reason: 'Projects demonstrate practical abilities' });
-    if (!resumeData?.certifications?.length) missing.push({ section: 'Certifications', priority: 'medium', reason: 'Certifications validate your expertise' });
-    if (!githubData?.connected) missing.push({ section: 'GitHub Profile', priority: 'medium', reason: 'GitHub showcases your technical work' });
+    if (allProjects.length === 0) missing.push({ section: 'Featured Projects', priority: 'high', reason: 'Projects demonstrate practical abilities' });
+    if (allCertifications.length === 0) missing.push({ section: 'Certifications', priority: 'medium', reason: 'Certifications validate your expertise' });
 
     return missing;
   }
 
   private generateImprovements(resumeData: any, linkedinData: any, githubData: any, scores: any): any[] {
     const improvements: any[] = [];
+    const allProjects = [...(linkedinData?.projects || []), ...(resumeData?.projects || [])];
+    const allCerts = [...(linkedinData?.certifications || []), ...(resumeData?.certifications || [])];
+    const allSkills = [...new Set([...(linkedinData?.skills || []), ...(resumeData?.skills || [])])];
 
     if (!linkedinData?.about || linkedinData.about.length < 100) {
       improvements.push({
@@ -801,7 +820,7 @@ export class AnalysisService {
       });
     }
 
-    if (resumeData?.projects?.length === 0) {
+    if (allProjects.length === 0) {
       improvements.push({
         title: 'Add Featured Projects',
         priority: 'high',
@@ -811,7 +830,7 @@ export class AnalysisService {
       });
     }
 
-    if (linkedinData?.skills?.length < 10) {
+    if (allSkills.length < 10) {
       improvements.push({
         title: 'Add More Skills',
         priority: 'medium',
@@ -821,7 +840,7 @@ export class AnalysisService {
       });
     }
 
-    if (resumeData?.certifications?.length === 0) {
+    if (allCerts.length === 0) {
       improvements.push({
         title: 'Add Certifications',
         priority: 'medium',
