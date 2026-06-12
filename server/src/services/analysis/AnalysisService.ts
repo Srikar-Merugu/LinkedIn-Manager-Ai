@@ -4,6 +4,9 @@ import { AnalysisReport } from '../../models/analysis/AnalysisReport';
 import { OnboardingState } from '../../models/onboarding/OnboardingState';
 import { ResumeData } from '../../models/onboarding/ResumeData';
 import { User } from '../../models/identity/User';
+import { LinkedInConnection } from '../../models/identity/LinkedInConnection';
+import { profileDataExtractor, LinkedInProfileData, GitHubProfileData, ResumeData as ExtractorResumeData } from './ProfileDataExtractor';
+import { aiAnalyzer, AIAnalysisResult } from './AIAnalyzer';
 
 const logger = pino({ name: 'analysis-service' });
 
@@ -28,6 +31,7 @@ export class AnalysisService {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
 
+    // --- 1. Extract real data ---
     const resume = state.connectedSources.resume?.connected
       ? await ResumeData.findOne({ onboardingStateId: state._id }).lean()
       : null;
@@ -36,29 +40,79 @@ export class AnalysisService {
     const githubUrl = (state as any).githubUrl || '';
     const careerGoals = state.careerGoals || [];
 
-    const resumeData = resume ? this.extractResumeData(resume) : this.emptyResumeData();
-    const linkedinData = linkedinUrl ? this.parseLinkedInUrl(linkedinUrl) : this.emptyLinkedInData();
-    const githubData = githubUrl ? this.parseGitHubUrl(githubUrl) : this.emptyGitHubData();
+    // Fetch LinkedIn access token from connection if available
+    let linkedinAccessToken = '';
+    try {
+      const connection = await LinkedInConnection.findOne({ userId: new mongoose.Types.ObjectId(userId) }).lean();
+      if (connection && connection.accessTokenEncrypted) {
+        linkedinAccessToken = profileDataExtractor.decryptAccessToken(connection.accessTokenEncrypted);
+      }
+    } catch (e: any) {
+      logger.warn({ err: e.message }, 'Failed to get LinkedIn access token');
+    }
 
-    const scores = this.calculateScores(resumeData, linkedinData, githubData, careerGoals);
-    const strengths = this.generateStrengths(resumeData, linkedinData, githubData, scores);
-    const weaknesses = this.generateWeaknesses(resumeData, linkedinData, githubData, scores);
-    const contentPillars = this.generateContentPillars(resumeData, linkedinData, githubData, careerGoals);
-    const brandDNA = this.generateBrandDNA(resumeData, linkedinData, githubData, careerGoals, user.fullName);
+    // Extract real data from all sources
+    const [linkedinData, githubData, resumeData] = await Promise.all([
+      profileDataExtractor.extractLinkedInData(linkedinAccessToken, linkedinUrl),
+      profileDataExtractor.extractGitHubData(githubUrl),
+      profileDataExtractor.extractResumeData(resume),
+    ]);
+
+    logger.info({ linkedinConnected: linkedinData.connected, githubConnected: githubData.connected, resumeSkills: resumeData.skills.length }, 'Data extraction complete');
+
+    // --- 2. Run AI analysis ---
+    let aiResult: AIAnalysisResult;
+    try {
+      aiResult = await aiAnalyzer.analyzeProfile(linkedinData, githubData, resumeData, user.fullName, careerGoals);
+    } catch (e: any) {
+      logger.error({ err: e.message }, 'AI analysis failed, using rule-based fallback');
+      aiResult = await aiAnalyzer.analyzeProfile(linkedinData, githubData, resumeData, user.fullName, careerGoals);
+    }
+
+    // --- 3. Map AI results to report format ---
+    const scores = {
+      overall: aiResult.profileScore,
+      linkedin: Math.min(100, Math.round(
+        (linkedinData.headline ? 15 : 0) +
+        (linkedinData.about && linkedinData.about.length > 100 ? 15 : linkedinData.about ? 8 : 0) +
+        (linkedinData.experience.length * 5) +
+        (linkedinData.skills.length * 2) +
+        (linkedinData.education.length * 5)
+      )),
+      github: Math.min(100, Math.round(
+        (githubData.publicRepos * 5) +
+        (githubData.totalStars * 3) +
+        (githubData.languages.length * 8) +
+        (githubData.contributionStreak > 0 ? 10 : 0)
+      )),
+      resume: Math.min(100, Math.round(
+        (resumeData.skills.length * 3) +
+        (resumeData.experience.length * 10) +
+        (resumeData.projects.length * 8) +
+        (resumeData.certifications.length * 5)
+      )),
+      content: aiResult.profileScore > 60 ? Math.round(aiResult.profileScore * 0.7) : 30,
+    };
+
+    const contentPillars = aiResult.contentPillars.map(p => ({
+      name: p.name,
+      description: p.description,
+      score: p.score,
+      topics: p.topics || [],
+      authorityScore: p.authorityScore || p.score,
+      engagementPotential: p.engagementPotential || p.score,
+      careerAlignment: p.careerAlignment || p.score,
+    }));
+
+    const brandDNA = aiResult.brandDNA || this.generateBrandDNA(resumeData, linkedinData, githubData, careerGoals, user.fullName);
+
     const writingDNA = this.generateWritingDNA(resumeData, linkedinData);
+
     const careerBlueprint = this.generateCareerBlueprint(resumeData, linkedinData, githubData, careerGoals, scores);
     const strategy90Days = this.generateStrategy90Days(scores, careerGoals, resumeData, contentPillars);
     const contentCalendar = this.generateContentCalendar(strategy90Days, contentPillars);
-    const quickWins = this.generateQuickWins(resumeData, linkedinData, githubData, scores);
-    const opportunities = this.generateOpportunities(resumeData, linkedinData, githubData, careerGoals, contentPillars);
 
-    const profileScore = this.calculateProfileScore(resumeData, linkedinData, githubData, scores);
-    const profileHealth = this.generateProfileHealth(resumeData, linkedinData, githubData);
-    const missingSections = this.generateMissingSections(resumeData, linkedinData, githubData);
-    const improvements = this.generateImprovements(resumeData, linkedinData, githubData, scores);
-    const contentOpportunitiesNew = this.generateContentOpportunities(resumeData, linkedinData, githubData, careerGoals, contentPillars);
-    const aiSummary = this.generateAISummary(user.fullName, resumeData, linkedinData, githubData, scores, strengths, weaknesses, contentPillars);
-
+    // --- 4. Save to AnalysisReport ---
     const report = await AnalysisReport.findOneAndUpdate(
       { userId: new mongoose.Types.ObjectId(userId) },
       {
@@ -71,22 +125,22 @@ export class AnalysisService {
         resumeAnalysis: resumeData,
         githubAnalysis: githubData,
         scores,
-        strengths,
-        weaknesses,
+        strengths: aiResult.strengths.length > 0 ? aiResult.strengths : this.generateStrengths(resumeData, linkedinData, githubData, scores),
+        weaknesses: aiResult.weaknesses.length > 0 ? aiResult.weaknesses : this.generateWeaknesses(resumeData, linkedinData, githubData, scores),
         contentPillars,
         brandDNA,
         writingDNA,
         careerBlueprint,
         strategy90Days,
         contentCalendar,
-        quickWins,
-        opportunities,
-        profileScore,
-        profileHealth,
-        missingSections,
-        improvements,
-        contentOpportunities: contentOpportunitiesNew,
-        aiSummary,
+        quickWins: aiResult.quickWins.length > 0 ? aiResult.quickWins : this.generateQuickWins(resumeData, linkedinData, githubData, scores),
+        opportunities: aiResult.contentOpportunities.length > 0 ? aiResult.contentOpportunities : this.generateOpportunities(resumeData, linkedinData, githubData, careerGoals, contentPillars),
+        profileScore: aiResult.profileScore,
+        profileHealth: aiResult.profileHealth,
+        missingSections: aiResult.missingSections,
+        improvements: aiResult.improvements,
+        contentOpportunities: aiResult.contentOpportunities,
+        aiSummary: aiResult.aiSummary,
         dashboardMetrics: {
           totalPosts: 0,
           totalEngagement: 0,
@@ -102,6 +156,7 @@ export class AnalysisService {
       { upsert: true, new: true }
     ).lean();
 
+    logger.info({ profileScore: aiResult.profileScore, strengths: aiResult.strengths.length, weaknesses: aiResult.weaknesses.length, contentPillars: contentPillars.length }, 'Report generated');
     return report;
   }
 
