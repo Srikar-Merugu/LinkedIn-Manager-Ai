@@ -38,7 +38,7 @@ export function SignInForm({ onSwitchToSignUp, showCreated }: SignInFormProps) {
     setError(null);
     try {
       await loginWithEmailPassword(email, password);
-      router.push('/onboarding');
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

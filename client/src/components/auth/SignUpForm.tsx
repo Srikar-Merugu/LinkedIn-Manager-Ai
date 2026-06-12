@@ -143,7 +143,7 @@ interface SignUpFormProps {
   onSwitchToSignIn: () => void;
 }
 
-export function SignUpForm({ onSwitchToSignIn, showSuccess }: SignUpFormProps & { showSuccess?: boolean }) {
+export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
   const { signUpWithEmailPassword } = useAuth();
   const router = useRouter();
 
@@ -174,7 +174,10 @@ export function SignUpForm({ onSwitchToSignIn, showSuccess }: SignUpFormProps & 
     try {
       await signUpWithEmailPassword(email, password, fullName);
       setSuccess(true);
-      setTimeout(() => onSwitchToSignIn(), 1500);
+      // Redirect to sign-in with success param — banner shows for 5s then auto-hides
+      setTimeout(() => {
+        router.push('/sign-up?signup=success');
+      }, 1500);
     } catch (err: any) {
       setErrors({ submit: err.message || 'Failed to create account' });
     } finally {

@@ -3,13 +3,22 @@ import type { NextRequest } from 'next/server';
 
 const publicRoutes = [
   '/',
+  '/api',
+];
+
+const authRoutes = [
   '/sign-in',
   '/sign-up',
-  '/api',
 ];
 
 const isPublicRoute = (pathname: string): boolean => {
   return publicRoutes.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+};
+
+const isAuthRoute = (pathname: string): boolean => {
+  return authRoutes.some(route =>
     pathname === route || pathname.startsWith(route + '/')
   );
 };
@@ -23,6 +32,31 @@ export default async function middleware(req: NextRequest) {
 
   const sessionCookie = req.cookies.get('session')?.value;
 
+  // For auth routes (sign-in, sign-up): if valid session exists, redirect to dashboard
+  if (isAuthRoute(pathname)) {
+    if (!sessionCookie) {
+      return NextResponse.next();
+    }
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/me`, {
+        headers: { Cookie: `session=${sessionCookie}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          return NextResponse.redirect(new URL('/dashboard', req.url));
+        }
+      }
+    } catch {
+      // Invalid session — let them stay on auth page
+    }
+
+    return NextResponse.next();
+  }
+
+  // For all other protected routes: require valid session
   if (!sessionCookie) {
     const signInUrl = new URL('/sign-up', req.url);
     signInUrl.searchParams.set('redirect', pathname);
