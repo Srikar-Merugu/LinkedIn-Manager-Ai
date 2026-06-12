@@ -37,6 +37,7 @@ import { createGoogleSheetsRouter } from './routes/google-sheets';
 import { createDashboardRouter } from './routes/dashboard';
 import { createContentIntelligenceRouter } from './routes/content-intelligence';
 import { createContentChallengeRouter } from './routes/content-challenge';
+import { createContentAnalyticsRouter } from './routes/content-analytics';
 import { autoPublisher } from './services/scheduler/AutoPublisher';
 import { apiLimiter, authLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -124,6 +125,7 @@ export async function createApp(): Promise<express.Express> {
   app.use('/api/dashboard', createDashboardRouter());
   app.use('/api/content-intelligence', createContentIntelligenceRouter());
   app.use('/api/content-challenge', createContentChallengeRouter());
+  app.use('/api/content-analytics', createContentAnalyticsRouter());
 
   app.get('/api/health', (_req, res) => {
     res.json({

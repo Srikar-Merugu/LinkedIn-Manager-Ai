@@ -751,4 +751,9 @@ export const api = {
     delete: () =>
       fetchAPI<any>('/content-challenge', { method: 'DELETE' }),
   },
+
+  contentAnalytics: {
+    get: () =>
+      fetchAPI<any>('/content-analytics'),
+  },
 };
