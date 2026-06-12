@@ -257,5 +257,187 @@ export function createOnboardingRouter(): Router {
     }
   });
 
+  router.post('/linkedin-pdf', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const multer = require('multer');
+      const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+      await new Promise<void>((resolve, reject) => {
+        upload.single('pdf')(req, res, (err: any) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(file.buffer);
+      const rawText = data.text || '';
+
+      const parsed = parseLinkedInPdf(rawText);
+      logger.info({ textLength: rawText.length, sections: Object.keys(parsed) }, 'LinkedIn PDF parsed');
+
+      res.json({ parsed, fileInfo: { fileName: file.originalname, fileType: file.mimetype, fileSize: file.size } });
+    } catch (error: any) {
+      logger.error({ error }, 'LinkedIn PDF upload failed');
+      res.status(500).json({ error: error.message || 'Failed to parse LinkedIn PDF' });
+    }
+  });
+
+  router.post('/linkedin-pdf-data', async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+      const { fileInfo, parsedData } = req.body;
+      await onboardingService.completeStep(userId, 'linkedin_pdf', { fileInfo, parsedData });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   return router;
+}
+
+function parseLinkedInPdf(rawText: string): any {
+  const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+
+  let fullName = '';
+  let headline = '';
+  let about = '';
+  let location = '';
+  let connections = '';
+  const experience: any[] = [];
+  const education: any[] = [];
+  const skills: string[] = [];
+  const certifications: any[] = [];
+  const volunteerWork: any[] = [];
+  const recommendations: any[] = [];
+  const featured: any[] = [];
+
+  let currentSection = '';
+  let aboutLines: string[] = [];
+  let currentExp: any = null;
+  let currentEdu: any = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (i === 0 && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i)) {
+      fullName = line;
+      continue;
+    }
+    if (i === 1 && fullName && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i)) {
+      headline = line;
+      continue;
+    }
+    if (line.match(/^\d+\s+connections?$/i)) {
+      connections = line;
+      continue;
+    }
+    if (line.match(/^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?$/) && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i) && fullName && !location) {
+      location = line;
+      continue;
+    }
+
+    if (line === 'About') { currentSection = 'about'; aboutLines = []; continue; }
+    if (line === 'Experience') { currentSection = 'experience'; if (aboutLines.length > 0 && !about) about = aboutLines.join(' ').trim(); continue; }
+    if (line === 'Education') { currentSection = 'education'; if (currentExp) { experience.push(currentExp); currentExp = null; } continue; }
+    if (line === 'Skills') { currentSection = 'skills'; if (currentEdu) { education.push(currentEdu); currentEdu = null; } continue; }
+    if (line === 'Certifications') { currentSection = 'certifications'; continue; }
+    if (line === 'Volunteer Experience') { currentSection = 'volunteer'; continue; }
+    if (line === 'Recommendations') { currentSection = 'recommendations'; continue; }
+    if (line === 'Featured') { currentSection = 'featured'; continue; }
+    if (line === 'Interests') { currentSection = ''; continue; }
+    if (line === 'People also viewed') { currentSection = ''; continue; }
+
+    if (currentSection === 'about') {
+      aboutLines.push(line);
+      continue;
+    }
+
+    if (currentSection === 'experience') {
+      if (line.match(/^(Present|\d{4}\s*-\s*(?:Present|\d{4}|\w+\s+\d{4}))$/i) || line.match(/^\w+\s+\d{4}\s*-\s*(?:Present|\w+\s+\d{4})$/i)) {
+        if (currentExp) experience.push(currentExp);
+        currentExp = { title: '', organization: '', location: '', description: '', startDate: line, endDate: '', current: line.toLowerCase().includes('present') };
+        continue;
+      }
+      if (currentExp && !currentExp.title) {
+        currentExp.title = line;
+        continue;
+      }
+      if (currentExp && !currentExp.organization) {
+        currentExp.organization = line;
+        continue;
+      }
+      if (currentExp && currentExp.title && currentExp.organization && !currentExp.location && line.length < 60 && !line.match(/^\d/)) {
+        currentExp.location = line;
+        continue;
+      }
+      if (currentExp && currentExp.title) {
+        currentExp.description = currentExp.description ? currentExp.description + ' ' + line : line;
+        continue;
+      }
+    }
+
+    if (currentSection === 'education') {
+      if (line.match(/^\d{4}\s*-\s*\d{4}$/i) || line.match(/^\d{4}$/)) {
+        if (currentEdu) education.push(currentEdu);
+        currentEdu = { schoolName: '', degree: '', fieldOfStudy: '', startDate: line, endDate: '' };
+        continue;
+      }
+      if (currentEdu && !currentEdu.schoolName) {
+        currentEdu.schoolName = line;
+        continue;
+      }
+      if (currentEdu && !currentEdu.degree) {
+        currentEdu.degree = line;
+        continue;
+      }
+      if (currentEdu && currentEdu.degree) {
+        currentEdu.fieldOfStudy = currentEdu.fieldOfStudy ? currentEdu.fieldOfStudy + ' ' + line : line;
+        continue;
+      }
+    }
+
+    if (currentSection === 'skills') {
+      if (!line.match(/^\d+$/i) && line.length > 1 && line.length < 100) {
+        skills.push(line);
+      }
+      continue;
+    }
+
+    if (currentSection === 'certifications') {
+      if (!line.match(/^\d+$/i) && line.length > 2) {
+        certifications.push({ name: line, authority: '', url: '' });
+      }
+      continue;
+    }
+  }
+
+  if (aboutLines.length > 0 && !about) about = aboutLines.join(' ').trim();
+  if (currentExp) experience.push(currentExp);
+  if (currentEdu) education.push(currentEdu);
+
+  return {
+    fullName,
+    headline,
+    about,
+    location,
+    connections,
+    experience,
+    education,
+    skills: [...new Set(skills)],
+    certifications,
+    volunteerWork,
+    recommendations,
+    featured,
+    rawText: rawText.substring(0, 5000),
+  };
 }

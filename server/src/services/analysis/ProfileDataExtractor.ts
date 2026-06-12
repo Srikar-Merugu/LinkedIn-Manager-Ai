@@ -52,130 +52,61 @@ export interface ResumeData {
 
 export class ProfileDataExtractor {
 
-  async extractLinkedInData(accessToken: string, linkedinUrl: string): Promise<LinkedInProfileData> {
-    logger.info({ linkedinUrl }, 'Starting LinkedIn data extraction');
+  async extractLinkedInData(pdfParsedData: any, linkedinUrl: string): Promise<LinkedInProfileData> {
+    logger.info({ hasPdfData: !!pdfParsedData }, 'Extracting LinkedIn data from PDF');
 
-    const emptyData: LinkedInProfileData = {
-      connected: false,
-      username: this.extractLinkedInUsername(linkedinUrl),
-      fullName: '',
-      headline: '',
-      about: '',
-      location: '',
-      industry: '',
-      profilePicture: '',
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      featured: [],
-      connections: 0,
-    };
-
-    if (!accessToken) {
-      logger.warn('No LinkedIn access token provided');
-      return emptyData;
-    }
-
-    try {
-      const headers = { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' };
-
-      const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', { headers, timeout: 10000 }).catch(() => null);
-
-      let profile: any = {};
-      if (profileRes?.data) {
-        profile = profileRes.data;
-        logger.info({ sub: profile.sub, name: profile.name }, 'LinkedIn basic profile fetched');
-      }
-
-      let email = '';
-      try {
-        const emailRes = await axios.get('https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))', { headers, timeout: 10000 });
-        email = emailRes.data?.elements?.[0]?.['handle~']?.emailAddress || '';
-      } catch { logger.debug('Could not fetch LinkedIn email'); }
-
-      let headline = '';
-      let about = '';
-      let location = '';
-      let industry = '';
-      let experience: any[] = [];
-      let education: any[] = [];
-      let skills: string[] = [];
-      let certifications: any[] = [];
-      let profilePicture = '';
-
-      const legacyHeaders = { Authorization: `Bearer ${accessToken}` };
-
-      try {
-        const personRes = await axios.get('https://api.linkedin.com/v2/people/~:(id,headline,summary,location,industry,profilePicture(displayImage~:playableStreams))', { headers: legacyHeaders, timeout: 10000 }).catch(() => null);
-        if (personRes?.data) {
-          headline = personRes.data.headline || '';
-          about = personRes.data.summary || '';
-          location = personRes.data.location?.name || '';
-          industry = personRes.data.industry || '';
-          profilePicture = personRes.data.profilePicture?.displayImage?.elements?.slice(-1)?.[0]?.identifiers?.[0]?.identifier || '';
-          logger.info({ headline: headline.substring(0, 50) }, 'LinkedIn person data fetched');
-        }
-      } catch (e: any) { logger.debug({ error: e.message }, 'Could not fetch LinkedIn person data'); }
-
-      try {
-        const positionsRes = await axios.get('https://api.linkedin.com/v2/people/~/positions?count=50', { headers: legacyHeaders, timeout: 10000 }).catch(() => null);
-        if (positionsRes?.data?.values) {
-          experience = positionsRes.data.values.map((pos: any) => ({
-            title: pos.title || '',
-            organization: pos.company?.name || '',
-            location: pos.location?.name || '',
-            description: pos.description || '',
-            startDate: pos.startDate ? `${pos.startDate.year}-${String(pos.startDate.month || 1).padStart(2, '0')}` : '',
-            endDate: pos.endDate ? `${pos.endDate.year}-${String(pos.endDate.month || 1).padStart(2, '0')}` : '',
-            current: pos.isCurrent || false,
-          }));
-          logger.info({ count: experience.length }, 'LinkedIn positions fetched');
-        }
-      } catch (e: any) { logger.debug({ error: e.message }, 'Could not fetch LinkedIn positions'); }
-
-      try {
-        const eduRes = await axios.get('https://api.linkedin.com/v2/people/~/educations?count=50', { headers: legacyHeaders, timeout: 10000 }).catch(() => null);
-        if (eduRes?.data?.values) {
-          education = eduRes.data.values.map((edu: any) => ({
-            schoolName: edu.schoolName || '',
-            degree: edu.degree || '',
-            fieldOfStudy: edu.fieldOfStudy || '',
-            startDate: edu.startDate ? `${edu.startDate.year}` : '',
-            endDate: edu.endDate ? `${edu.endDate.year}` : '',
-          }));
-          logger.info({ count: education.length }, 'LinkedIn education fetched');
-        }
-      } catch (e: any) { logger.debug({ error: e.message }, 'Could not fetch LinkedIn education'); }
-
-      try {
-        const skillsRes = await axios.get('https://api.linkedin.com/v2/people/~/skills?count=100', { headers: legacyHeaders, timeout: 10000 }).catch(() => null);
-        if (skillsRes?.data?.values) {
-          skills = skillsRes.data.values.map((s: any) => s.skill?.name || s.name || '').filter(Boolean);
-          logger.info({ count: skills.length }, 'LinkedIn skills fetched');
-        }
-      } catch (e: any) { logger.debug({ error: e.message }, 'Could not fetch LinkedIn skills'); }
-
-      return {
+    if (pdfParsedData) {
+      const linkedinData: LinkedInProfileData = {
         connected: true,
-        username: emptyData.username || profile.sub || '',
-        fullName: profile.name || '',
-        headline,
-        about,
-        location,
-        industry,
-        profilePicture,
-        experience,
-        education,
-        skills,
-        certifications,
-        featured: [],
-        connections: 0,
+        username: this.extractLinkedInUsername(linkedinUrl),
+        fullName: pdfParsedData.fullName || '',
+        headline: pdfParsedData.headline || '',
+        about: pdfParsedData.about || '',
+        location: pdfParsedData.location || '',
+        industry: '',
+        profilePicture: '',
+        experience: (pdfParsedData.experience || []).map((e: any) => ({
+          title: e.title || '',
+          organization: e.organization || '',
+          location: e.location || '',
+          description: e.description || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          current: e.current || false,
+        })),
+        education: (pdfParsedData.education || []).map((e: any) => ({
+          schoolName: e.schoolName || '',
+          degree: e.degree || '',
+          fieldOfStudy: e.fieldOfStudy || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+        })),
+        skills: pdfParsedData.skills || [],
+        certifications: (pdfParsedData.certifications || []).map((c: any) => ({
+          name: c.name || '',
+          authority: c.authority || '',
+          url: c.url || '',
+        })),
+        featured: (pdfParsedData.featured || []).map((f: any) => ({
+          title: f.title || '',
+          description: f.description || '',
+          url: f.url || '',
+        })),
+        connections: parseInt(pdfParsedData.connections) || 0,
       };
-    } catch (error: any) {
-      logger.error({ error: error.message }, 'LinkedIn data extraction failed');
-      return emptyData;
+
+      logger.info({
+        name: linkedinData.fullName,
+        headline: linkedinData.headline.substring(0, 50),
+        experience: linkedinData.experience.length,
+        skills: linkedinData.skills.length,
+      }, 'LinkedIn PDF data extracted');
+
+      return linkedinData;
     }
+
+    logger.warn('No LinkedIn PDF data provided');
+    return this.emptyLinkedInData();
   }
 
   async extractGitHubData(githubUrl: string): Promise<GitHubProfileData> {
@@ -377,6 +308,25 @@ export class ProfileDataExtractor {
   private extractGitHubUsername(url: string): string {
     const match = url.match(/github\.com\/([^/?]+)/);
     return match ? match[1] : '';
+  }
+
+  private emptyLinkedInData(): LinkedInProfileData {
+    return {
+      connected: false,
+      username: '',
+      fullName: '',
+      headline: '',
+      about: '',
+      location: '',
+      industry: '',
+      profilePicture: '',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      featured: [],
+      connections: 0,
+    };
   }
 
   decryptAccessToken(encrypted: string): string {

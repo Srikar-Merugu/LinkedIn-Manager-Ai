@@ -15,6 +15,7 @@ export type OnboardingStatus =
 
 export type OnboardingStep =
   | 'welcome'
+  | 'linkedin_pdf'
   | 'connect_linkedin'
   | 'upload_resume'
   | 'connect_github'

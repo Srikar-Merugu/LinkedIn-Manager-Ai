@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout';
 import { WelcomeScreen } from '@/components/onboarding/WelcomeScreen';
-import { LinkedInUrlStep } from '@/components/onboarding/LinkedInUrlStep';
+import { LinkedInPdfStep } from '@/components/onboarding/LinkedInPdfStep';
 import { UploadResumeStep } from '@/components/onboarding/UploadResumeStep';
 import { GithubUrlStep } from '@/components/onboarding/GithubUrlStep';
 import { CareerGoalsStep } from '@/components/onboarding/CareerGoalsStep';
@@ -31,11 +31,11 @@ export default function OnboardingPage() {
       case 'welcome':
         return <WelcomeScreen onComplete={() => completeStep('welcome')} />;
 
-      case 'linkedin_url':
+      case 'linkedin_pdf':
         return (
-          <LinkedInUrlStep
-            onComplete={(data) => completeStep('linkedin_url', data)}
-            onSkip={() => skipStep('linkedin_url')}
+          <LinkedInPdfStep
+            onComplete={(data) => completeStep('linkedin_pdf', data)}
+            onSkip={() => skipStep('linkedin_pdf')}
           />
         );
 

@@ -4,7 +4,6 @@ import { AnalysisReport } from '../../models/analysis/AnalysisReport';
 import { OnboardingState } from '../../models/onboarding/OnboardingState';
 import { ResumeData } from '../../models/onboarding/ResumeData';
 import { User } from '../../models/identity/User';
-import { LinkedInConnection } from '../../models/identity/LinkedInConnection';
 import { profileDataExtractor, LinkedInProfileData, GitHubProfileData, ResumeData as ExtractorResumeData } from './ProfileDataExtractor';
 import { aiAnalyzer, AIAnalysisResult } from './AIAnalyzer';
 
@@ -40,20 +39,12 @@ export class AnalysisService {
     const githubUrl = (state as any).githubUrl || '';
     const careerGoals = state.careerGoals || [];
 
-    // Fetch LinkedIn access token from connection if available
-    let linkedinAccessToken = '';
-    try {
-      const connection = await LinkedInConnection.findOne({ userId: new mongoose.Types.ObjectId(userId) }).lean();
-      if (connection && connection.accessTokenEncrypted) {
-        linkedinAccessToken = profileDataExtractor.decryptAccessToken(connection.accessTokenEncrypted);
-      }
-    } catch (e: any) {
-      logger.warn({ err: e.message }, 'Failed to get LinkedIn access token');
-    }
+    // Get LinkedIn PDF parsed data from onboarding state
+    const linkedinPdfData = (state as any).connectedSources?.linkedin_pdf?.parsedData || (state as any).linkedinPdfData || null;
 
     // Extract real data from all sources
     const [linkedinData, githubData, resumeData] = await Promise.all([
-      profileDataExtractor.extractLinkedInData(linkedinAccessToken, linkedinUrl),
+      profileDataExtractor.extractLinkedInData(linkedinPdfData, linkedinUrl),
       profileDataExtractor.extractGitHubData(githubUrl),
       profileDataExtractor.extractResumeData(resume),
     ]);

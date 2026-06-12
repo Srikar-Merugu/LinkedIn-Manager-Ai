@@ -12,13 +12,10 @@ const logger = pino();
 
 const STEP_ORDER: OnboardingStep[] = [
   'welcome',
-  'connect_linkedin',
+  'linkedin_pdf',
   'upload_resume',
   'connect_github',
-  'connect_portfolio',
   'career_goals',
-  'content_experience',
-  'voice_training',
   'ai_analysis',
   'results',
 ];
@@ -88,6 +85,30 @@ export class OnboardingService {
 
     state.stepData.push(stepEntry as any);
     state.completedSteps.push(step);
+
+    if (step === 'linkedin_pdf' && data.parsedData) {
+      (state as any).connectedSources.linkedin_pdf = {
+        connected: true,
+        parsedData: data.parsedData,
+        fileInfo: data.fileInfo || null,
+      };
+      (state as any).linkedinPdfData = data.parsedData;
+      (state as any).linkedinUrl = '';
+    }
+
+    if (step === 'connect_linkedin' && data.linkedinUrl) {
+      (state as any).linkedinUrl = data.linkedinUrl;
+      (state as any).connectedSources.linkedin = { connected: true, url: data.linkedinUrl };
+    }
+
+    if (step === 'connect_github' && data.githubUrl) {
+      (state as any).githubUrl = data.githubUrl;
+      (state as any).connectedSources.github = { connected: true, url: data.githubUrl };
+    }
+
+    if (step === 'career_goals' && data.goals) {
+      (state as any).careerGoals = data.goals;
+    }
 
     const nextStep = getNextStep(step);
     if (nextStep) {

@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 
 type OnboardingStep =
   | 'welcome'
-  | 'linkedin_url'
+  | 'linkedin_pdf'
   | 'upload_resume'
   | 'github_url'
   | 'career_goals'
@@ -15,7 +15,7 @@ type OnboardingStep =
 
 const STEP_ORDER: OnboardingStep[] = [
   'welcome',
-  'linkedin_url',
+  'linkedin_pdf',
   'upload_resume',
   'github_url',
   'career_goals',
@@ -25,7 +25,7 @@ const STEP_ORDER: OnboardingStep[] = [
 
 const STEP_LABELS: Record<OnboardingStep, string> = {
   welcome: 'Welcome',
-  linkedin_url: 'LinkedIn Profile',
+  linkedin_pdf: 'LinkedIn Profile',
   upload_resume: 'Upload Resume',
   github_url: 'GitHub Profile',
   career_goals: 'Career Goals',
@@ -35,7 +35,7 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
 
 const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
   welcome: 'Let\'s get started',
-  linkedin_url: 'Your profile is the source of truth',
+  linkedin_pdf: 'Upload your LinkedIn profile PDF',
   upload_resume: 'Bring your experience',
   github_url: 'Show your work',
   career_goals: 'What are you working toward?',
@@ -113,10 +113,8 @@ export function useOnboarding() {
         case 'welcome':
           await api.onboarding.completeWelcome(data);
           break;
-        case 'linkedin_url':
-          if (data?.linkedinUrl) {
-            await api.onboarding.saveLinkedInUrl(data.linkedinUrl);
-          }
+        case 'linkedin_pdf':
+          if (data) await api.onboarding.uploadLinkedInPdfData(data.fileInfo, data.parsedData);
           break;
         case 'upload_resume':
           if (data) await api.onboarding.uploadResume(data.fileInfo, data.parsedData);

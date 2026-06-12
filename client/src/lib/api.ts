@@ -139,6 +139,24 @@ export const api = {
 
     markRedirected: () =>
       fetchAPI<any>('/onboarding/redirected', { method: 'POST' }),
+
+    uploadLinkedInPdf: async (file: File): Promise<any> => {
+      const formData = new FormData();
+      formData.append('pdf', file);
+      const response = await fetch(`${API_BASE}/onboarding/linkedin-pdf`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(error.error || 'Failed to upload LinkedIn PDF');
+      }
+      return response.json();
+    },
+
+    uploadLinkedInPdfData: (fileInfo: any, parsedData: any) =>
+      fetchAPI<any>('/onboarding/linkedin-pdf-data', { method: 'POST', body: JSON.stringify({ fileInfo, parsedData }) }),
   },
 
   career: {
