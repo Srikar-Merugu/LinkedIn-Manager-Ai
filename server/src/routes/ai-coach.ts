@@ -123,7 +123,7 @@ export function createAICoachRouter(): Router {
           userId: uid,
           title: message.substring(0, 60),
           status: 'active',
-          context: 'ai-coach',
+          context: 'general',
           messageCount: 0,
         });
       }
@@ -220,7 +220,7 @@ export function createAICoachRouter(): Router {
         userId: new mongoose.Types.ObjectId(userId),
         title: 'New conversation',
         status: 'active',
-        context: 'ai-coach',
+        context: 'general',
       });
       res.json(session);
     } catch (error: any) {
