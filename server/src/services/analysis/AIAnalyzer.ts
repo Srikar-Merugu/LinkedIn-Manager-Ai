@@ -199,7 +199,7 @@ IMPORTANT: Return ONLY valid JSON. Reference SPECIFIC data from the profile (act
     };
   }
 
-  private ruleBasedAnalysis(linkedin: LinkedInProfileData, github: GitHubProfileData, resume: ResumeData, fullName: string): AIAnalysisResult {
+  ruleBasedAnalysis(linkedin: LinkedInProfileData, github: GitHubProfileData, resume: ResumeData, fullName: string): AIAnalysisResult {
     logger.info('Running rule-based analysis');
     const firstName = fullName.split(' ')[0] || 'The user';
 

@@ -36,6 +36,11 @@ export interface IPortfolioSource extends IConnectedSource {
   pages?: number;
 }
 
+export interface ILinkedInPdfSource extends IConnectedSource {
+  parsedData?: any;
+  fileInfo?: any;
+}
+
 export interface IOnboardingState extends Document {
   userId: mongoose.Types.ObjectId;
   clerkId: string;
@@ -45,11 +50,13 @@ export interface IOnboardingState extends Document {
   stepData: IStepData[];
   connectedSources: {
     linkedin: ILinkedInSource;
+    linkedin_pdf: ILinkedInPdfSource;
     github: IGitHubSource;
     resume: IResumeSource;
     portfolio: IPortfolioSource;
   };
   linkedinUrl?: string;
+  linkedinPdfData?: any;
   githubUrl?: string;
   careerGoals: string[];
   postingFrequency: 'never' | 'occasionally' | 'monthly' | 'weekly' | 'daily';
@@ -125,6 +132,12 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
       syncedAt: Date,
       error: String,
     },
+    linkedin_pdf: {
+      connected: { type: Boolean, default: false },
+      parsedData: { type: Schema.Types.Mixed, default: null },
+      fileInfo: { type: Schema.Types.Mixed, default: null },
+      syncedAt: Date,
+    },
     github: {
       connected: { type: Boolean, default: false },
       username: String,
@@ -151,6 +164,7 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
   },
   careerGoals: [String],
   linkedinUrl: { type: String, default: '' },
+  linkedinPdfData: { type: Schema.Types.Mixed, default: null },
   githubUrl: { type: String, default: '' },
   postingFrequency: {
     type: String,

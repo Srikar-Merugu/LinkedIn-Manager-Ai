@@ -11,13 +11,17 @@ export interface IAnalysisReport extends Document {
   linkedinAnalysis: {
     username: string;
     connected: boolean;
+    fullName?: string;
     headline?: string;
     about?: string;
+    location?: string;
     experience: any[];
     education: any[];
     skills: string[];
+    certifications: any[];
     industry?: string;
-    location?: string;
+    connections?: string;
+    rawText?: string;
   };
 
   resumeAnalysis: {
@@ -138,13 +142,17 @@ const AnalysisReportSchema = new Schema<IAnalysisReport>({
   linkedinAnalysis: {
     username: { type: String, default: '' },
     connected: { type: Boolean, default: false },
-    headline: String,
-    about: String,
+    fullName: { type: String, default: '' },
+    headline: { type: String, default: '' },
+    about: { type: String, default: '' },
+    location: { type: String, default: '' },
     experience: { type: [Schema.Types.Mixed] as any[], default: [] },
     education: { type: [Schema.Types.Mixed] as any[], default: [] },
     skills: { type: [String], default: [] },
+    certifications: { type: [Schema.Types.Mixed] as any[], default: [] },
     industry: String,
-    location: String,
+    connections: { type: String, default: '' },
+    rawText: { type: String, default: '' },
   },
 
   resumeAnalysis: {

@@ -75,7 +75,7 @@ export class AnalysisService {
       aiResult = await aiAnalyzer.analyzeProfile(linkedinData, githubData, resumeData, user.fullName, careerGoals);
     } catch (e: any) {
       logger.error({ err: e.message }, 'AI analysis failed, using rule-based fallback');
-      aiResult = await aiAnalyzer.analyzeProfile(linkedinData, githubData, resumeData, user.fullName, careerGoals);
+      aiResult = aiAnalyzer.ruleBasedAnalysis(linkedinData, githubData, resumeData, user.fullName);
     }
 
     // --- 3. Map AI results to report format ---

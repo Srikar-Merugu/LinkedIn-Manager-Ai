@@ -168,6 +168,7 @@ export default function LinkedInAnalysisPage() {
   });
   const [exporting, setExporting] = useState(false);
   const [shareTooltip, setShareTooltip] = useState(false);
+  const [showRawModal, setShowRawModal] = useState(false);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -464,6 +465,7 @@ export default function LinkedInAnalysisPage() {
   report.profileHealth?.forEach(h => { healthCount[h.status as keyof typeof healthCount]++; });
 
   return (
+    <>
     <StaggerContainer className="space-y-6">
       <StaggerItem>
         <div className="flex items-start justify-between">
@@ -472,6 +474,10 @@ export default function LinkedInAnalysisPage() {
             <p className="text-surface-400">Complete profile intelligence and improvement roadmap</p>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => setShowRawModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 hover:bg-white/[0.05] transition-all font-medium">
+              <FileText className="w-4 h-4" /> View Raw Data
+            </button>
             <div className="relative">
               <button onClick={handleExportPDF} disabled={exporting}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-500/10 border border-brand-500/20 text-sm text-brand-400 hover:bg-brand-500/20 transition-all font-medium disabled:opacity-50">
@@ -1128,5 +1134,55 @@ export default function LinkedInAnalysisPage() {
         </GlassCard>
       </StaggerItem>
     </StaggerContainer>
+
+    <AnimatePresence>
+      {showRawModal && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowRawModal(false)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+            onClick={e => e.stopPropagation()}
+            className="glass rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-auto border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-surface-100">Raw Analysis Data</h3>
+              <button onClick={() => setShowRawModal(false)} className="text-surface-400 hover:text-surface-200">Close</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-surface-300 mb-2">LinkedIn Extracted Data</h4>
+                <pre className="p-4 rounded-xl bg-black/30 text-xs text-green-400/80 overflow-auto max-h-60 font-mono">
+                  {JSON.stringify(report?.linkedinAnalysis, null, 2) || 'No data'}
+                </pre>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-surface-300 mb-2">Resume Extracted Data</h4>
+                <pre className="p-4 rounded-xl bg-black/30 text-xs text-blue-400/80 overflow-auto max-h-60 font-mono">
+                  {JSON.stringify(report?.resumeAnalysis, null, 2) || 'No data'}
+                </pre>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-surface-300 mb-2">GitHub Data</h4>
+                <pre className="p-4 rounded-xl bg-black/30 text-xs text-purple-400/80 overflow-auto max-h-60 font-mono">
+                  {JSON.stringify(report?.githubAnalysis, null, 2) || 'No data'}
+                </pre>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-surface-300 mb-2">Profile Health</h4>
+                <pre className="p-4 rounded-xl bg-black/30 text-xs text-amber-400/80 overflow-auto max-h-60 font-mono">
+                  {JSON.stringify(report?.profileHealth, null, 2) || 'No data'}
+                </pre>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-surface-300 mb-2">Full Report</h4>
+                <pre className="p-4 rounded-xl bg-black/30 text-xs text-cyan-400/80 overflow-auto max-h-60 font-mono">
+                  {JSON.stringify(report, null, 2) || 'No data'}
+                </pre>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
