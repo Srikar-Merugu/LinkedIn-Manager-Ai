@@ -70,29 +70,8 @@ export class AnalysisService {
     }
 
     // --- 3. Map AI results to report format ---
-    const scores = {
-      overall: aiResult.profileScore,
-      linkedin: Math.min(100, Math.round(
-        (linkedinData.headline ? 15 : 0) +
-        (linkedinData.about && linkedinData.about.length > 100 ? 15 : linkedinData.about ? 8 : 0) +
-        (linkedinData.experience.length * 5) +
-        (linkedinData.skills.length * 2) +
-        (linkedinData.education.length * 5)
-      )),
-      github: Math.min(100, Math.round(
-        (githubData.publicRepos * 5) +
-        (githubData.totalStars * 3) +
-        (githubData.languages.length * 8) +
-        (githubData.contributionStreak > 0 ? 10 : 0)
-      )),
-      resume: Math.min(100, Math.round(
-        (resumeData.skills.length * 3) +
-        (resumeData.experience.length * 10) +
-        (resumeData.projects.length * 8) +
-        (resumeData.certifications.length * 5)
-      )),
-      content: aiResult.profileScore > 60 ? Math.round(aiResult.profileScore * 0.7) : 30,
-    };
+    const scores = this.calculateScores(resumeData, linkedinData, githubData, careerGoals);
+    scores.overall = aiResult.profileScore;
 
     const contentPillars = aiResult.contentPillars.map(p => ({
       name: p.name,
@@ -323,12 +302,18 @@ export class AnalysisService {
       if (careerGoals.includes('personal_brand')) { personalBrand += 8; industryAuthority += 5; }
     }
 
+    const tl = Math.min(100, technicalLeadership);
+    const cr = Math.min(100, contentReadiness);
+    const ia = Math.min(100, industryAuthority);
+    const pb = Math.min(100, personalBrand);
+    const co = Math.min(100, careerOpportunity);
     return {
-      technicalLeadership: Math.min(100, technicalLeadership),
-      contentReadiness: Math.min(100, contentReadiness),
-      industryAuthority: Math.min(100, industryAuthority),
-      personalBrand: Math.min(100, personalBrand),
-      careerOpportunity: Math.min(100, careerOpportunity),
+      overall: Math.round((tl + cr + ia + pb + co) / 5),
+      technicalLeadership: tl,
+      contentReadiness: cr,
+      industryAuthority: ia,
+      personalBrand: pb,
+      careerOpportunity: co,
     };
   }
 
