@@ -132,38 +132,47 @@ export function createAICoachRouter(): Router {
       const history = await ConversationHistory.find({ sessionId: session._id })
         .sort({ createdAt: 1 }).limit(20).lean();
 
+      // Call OpenRouter
+      const apiKey = process.env.OPENROUTER_API_KEY || '';
+
       // Build system prompt with full context
       const systemPrompt = buildSystemPrompt(report, posts, queue, challenge);
 
-      // Build messages for LLM
-      const messages: any[] = [
-        { role: 'system', content: systemPrompt },
-        ...history.map((h: any) => ({ role: h.role, content: h.content })),
-        { role: 'user', content: message },
-      ];
+      let aiResponse: string;
 
-      // Call OpenRouter
-      const apiKey = process.env.OPENROUTER_API_KEY || '';
-      if (!apiKey) {
-        return res.status(503).json({ error: 'AI service not configured' });
+      if (apiKey) {
+        try {
+          const response = await axios.post(OPENROUTER_API_URL, {
+            model: 'deepseek/deepseek-chat-v3:free',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...history.map((h: any) => ({ role: h.role, content: h.content })),
+              { role: 'user', content: message },
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+          }, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://personaos-ai.vercel.app',
+              'X-Title': 'PersonaOS AI Content Coach',
+            },
+            timeout: 60000,
+          });
+          aiResponse = response.data?.choices?.[0]?.message?.content || 'I could not generate a response.';
+        } catch (aiError: any) {
+          logger.error({ error: aiError.message }, 'OpenRouter API error');
+          if (aiError.response?.status === 429) {
+            return res.status(429).json({ error: 'Rate limited. Please wait a moment and try again.' });
+          }
+          // Fall back to context-aware static response
+          aiResponse = generateFallbackResponse(message, report, posts, challenge);
+        }
+      } else {
+        // No API key — generate context-aware fallback
+        aiResponse = generateFallbackResponse(message, report, posts, challenge);
       }
-
-      const response = await axios.post(OPENROUTER_API_URL, {
-        model: 'deepseek/deepseek-chat-v3:free',
-        messages,
-        temperature: 0.7,
-        max_tokens: 2000,
-      }, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://personaos-ai.vercel.app',
-          'X-Title': 'PersonaOS AI Content Coach',
-        },
-        timeout: 60000,
-      });
-
-      const aiResponse = response.data?.choices?.[0]?.message?.content || 'I could not generate a response. Please try again.';
 
       // Save messages
       await ConversationHistory.create({
@@ -399,4 +408,192 @@ Your tone should be like a knowledgeable, encouraging mentor who deeply understa
   parts.push(`10. Always be encouraging and constructive, even when pointing out weaknesses.`);
 
   return parts.join('\n');
+}
+
+function generateFallbackResponse(message: string, report: any, posts: any[], challenge: any): string {
+  const m = message.toLowerCase();
+  const li = report?.linkedinAnalysis || {};
+  const skills = li.skills || [];
+  const projects = li.projects || [];
+  const certs = li.certifications || [];
+  const pillars = report?.contentPillars || [];
+  const strategy = report?.strategy90Days || {};
+  const name = li.fullName?.split(' ')[0] || 'there';
+
+  const today = new Date();
+  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+
+  // What should I post today
+  if (m.includes('what should i post') || m.includes('post today') || m.includes('post this week')) {
+    const pillar = pillars.length > 0 ? pillars[0] : null;
+    const project = projects.length > 0 ? projects[0] : null;
+    const skill = skills.length > 0 ? skills[0] : null;
+
+    let rec = `## Here's your personalized recommendation for ${dayName}\n\n`;
+
+    if (project) {
+      const projectName = typeof project === 'string' ? project : project.name || project.title || 'your project';
+      rec += `**Post Idea:** Share a deep dive on **${projectName}**\n\n`;
+      rec += `**Why this works:** Your project "${projectName}" demonstrates hands-on expertise. LinkedIn audiences engage strongly with project breakdowns because they show real-world application.\n\n`;
+      rec += `**Hook:** "I just shipped ${projectName}. Here are 3 things I learned the hard way..."\n\n`;
+    } else if (skill) {
+      rec += `**Post Idea:** Write about your experience with **${skill}**\n\n`;
+      rec += `**Why this works:** ${skill} is one of your core skills. Sharing practical insights positions you as an authority.\n\n`;
+      rec += `**Hook:** "Most developers get ${skill} wrong. Here's what I do differently..."\n\n`;
+    } else if (pillar) {
+      rec += `**Post Idea:** Create a ${pillar.name} post\n\n`;
+      rec += `**Focus:** ${pillar.description || pillar.name}\n\n`;
+    } else {
+      rec += `**Post Idea:** Share a career lesson from your recent experience\n\n`;
+      rec += `**Hook:** "3 years ago I made a mistake that cost me ${Math.floor(Math.random() * 3) + 1} months. Here's what I learned..."\n\n`;
+    }
+
+    if (strategy.recommendedFrequency) {
+      rec += `**Your strategy says:** Post ${strategy.recommendedFrequency}\n\n`;
+    }
+
+    rec += `---\n*For fully AI-generated responses, add your OPENROUTER_API_KEY to Render environment variables.*`;
+    return rec;
+  }
+
+  // Content ideas
+  if (m.includes('content idea') || m.includes('ideas') || m.includes('what to write')) {
+    let resp = `## Content Ideas Personalized for ${name}\n\n`;
+
+    if (projects.length > 0) {
+      resp += `**From Your Projects:**\n`;
+      projects.slice(0, 3).forEach((p: any, i: number) => {
+        const pname = typeof p === 'string' ? p : p.name || p.title || `Project ${i + 1}`;
+        resp += `${i + 1}. **${pname}** — Share the architecture decisions, challenges you solved, or lessons learned\n`;
+      });
+      resp += '\n';
+    }
+
+    if (skills.length > 0) {
+      resp += `**From Your Skills:**\n`;
+      skills.slice(0, 3).forEach((s: string, i: number) => {
+        resp += `${i + 1}. **${s}** — Share a practical tip, common mistake, or workflow improvement\n`;
+      });
+      resp += '\n';
+    }
+
+    if (certs.length > 0) {
+      resp += `**From Your Certifications:**\n`;
+      certs.slice(0, 2).forEach((c: any, i: number) => {
+        const cname = typeof c === 'string' ? c : c.name || c.title || 'Certification';
+        resp += `${i + 1}. **${cname}** — Share your study process, key takeaways, or how it applies to your work\n`;
+      });
+      resp += '\n';
+    }
+
+    if (pillars.length > 0) {
+      resp += `**Your Content Pillars:**\n`;
+      pillars.forEach((p: any) => {
+        resp += `- **${p.name}**: ${p.description || 'Share insights in this area'}\n`;
+      });
+    }
+
+    resp += `\n---\n*For AI-generated ideas, add OPENROUTER_API_KEY to Render.*`;
+    return resp;
+  }
+
+  // Strategy review
+  if (m.includes('strategy') || m.includes('review my') || m.includes('review strategy')) {
+    let resp = `## Strategy Review for ${name}\n\n`;
+
+    if (strategy.narrative) {
+      resp += `**Your 90-Day Narrative:**\n${strategy.narrative}\n\n`;
+    }
+
+    if (strategy.monthlyPlans?.length > 0) {
+      resp += `**Monthly Plans:**\n`;
+      strategy.monthlyPlans.forEach((mp: any) => {
+        resp += `- Month ${mp.month} (${mp.phase}): ${mp.focus}\n`;
+      });
+      resp += '\n';
+    }
+
+    if (report?.scores) {
+      const s = report.scores;
+      resp += `**Your Scores:**\n`;
+      resp += `- Technical Leadership: ${s.technicalLeadership || 0}/100\n`;
+      resp += `- Content Readiness: ${s.contentReadiness || 0}/100\n`;
+      resp += `- Industry Authority: ${s.industryAuthority || 0}/100\n`;
+      resp += `- Personal Brand: ${s.personalBrand || 0}/100\n`;
+      resp += `- Career Opportunity: ${s.careerOpportunity || 0}/100\n\n`;
+
+      const lowest = Object.entries(s).sort(([, a]: any, [, b]: any) => a - b)[0];
+      if (lowest) {
+        resp += `**Focus Area:** Your lowest score is ${lowest[0]} (${lowest[1]}/100). Consider creating content that demonstrates authority in this area.\n\n`;
+      }
+    }
+
+    resp += `---\n*For AI-generated strategy analysis, add OPENROUTER_API_KEY to Render.*`;
+    return resp;
+  }
+
+  // Grow faster
+  if (m.includes('grow') || m.includes('faster') || m.includes('increase') || m.includes('engagement')) {
+    let resp = `## Growth Recommendations for ${name}\n\n`;
+
+    if (posts.length > 0) {
+      const published = posts.filter((p: any) => p.status === 'published');
+      resp += `**Current Status:** ${published.length} published posts\n\n`;
+    }
+
+    if (challenge) {
+      resp += `**90-Day Challenge:** Day ${challenge.currentDay || 0}/${challenge.totalDays || 90}\n`;
+      resp += `Posts Published: ${challenge.stats?.postsPublished || 0}\n`;
+      resp += `Current Streak: ${challenge.stats?.currentStreak || 0} days\n\n`;
+    }
+
+    resp += `**Quick Wins:**\n`;
+    resp += `1. Post consistently — your strategy recommends ${strategy.recommendedFrequency || '3x per week'}\n`;
+    resp += `2. Use hooks in the first line (questions, bold statements, or numbers)\n`;
+    resp += `3. Engage with comments within the first hour of posting\n`;
+    resp += `4. Share project breakdowns — they get 2-3x more engagement than generic advice\n`;
+
+    if (pillars.length > 0) {
+      resp += `\n**Rotate your pillars:** ${pillars.map((p: any) => p.name).join(' → ')}\n`;
+    }
+
+    resp += `\n---\n*For AI-generated growth strategy, add OPENROUTER_API_KEY to Render.*`;
+    return resp;
+  }
+
+  // Rewrite post
+  if (m.includes('rewrite') || m.includes('rewrite this')) {
+    let resp = `## Post Rewrite Help\n\n`;
+    resp += `To rewrite a post in your voice, I'll need the original text. Please paste the post you'd like me to rewrite.\n\n`;
+
+    if (report?.writingDNA) {
+      resp += `**Your Voice Profile:**\n`;
+      resp += `- Voice: ${report.writingDNA.voiceSignature || 'Professional'}\n`;
+      resp += `- Style: ${report.writingDNA.communicationStyle || 'Conversational'}\n`;
+      resp += `- Tone: ${report.writingDNA.toneProfile?.primary || 'Professional'}\n`;
+    }
+
+    resp += `\n---\n*For AI-powered rewriting, add OPENROUTER_API_KEY to Render.*`;
+    return resp;
+  }
+
+  // Default response
+  let resp = `## Hey ${name}!\n\n`;
+  resp += `I can see your complete profile including:\n`;
+
+  if (skills.length > 0) resp += `- **${skills.length} skills** (${skills.slice(0, 3).join(', ')}${skills.length > 3 ? '...' : ''})\n`;
+  if (projects.length > 0) resp += `- **${projects.length} projects** (${projects.slice(0, 2).map((p: any) => typeof p === 'string' ? p : p.name || p.title).join(', ')}${projects.length > 2 ? '...' : ''})\n`;
+  if (certs.length > 0) resp += `- **${certs.length} certifications**\n`;
+  if (pillars.length > 0) resp += `- **${pillars.length} content pillars** (${pillars.map((p: any) => p.name).join(', ')})\n`;
+  if (strategy.narrative) resp += `- **90-day strategy** active\n`;
+
+  resp += `\n**Try asking me:**\n`;
+  resp += `- "What should I post today?"\n`;
+  resp += `- "Give me content ideas"\n`;
+  resp += `- "Review my strategy"\n`;
+  resp += `- "How can I grow faster?"\n`;
+  resp += `- "Rewrite this post"\n`;
+
+  resp += `\n---\n*For fully AI-generated personalized responses, add OPENROUTER_API_KEY to your Render environment variables.*`;
+  return resp;
 }
