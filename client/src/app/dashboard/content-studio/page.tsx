@@ -22,7 +22,21 @@ const TOPIC_OPTIONS = [
 ];
 
 const POSTING_DAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const POSTING_TIME_OPTIONS = ['08:00', '09:00', '10:00', '12:00', '14:00', '17:00', '18:00', '20:00', '21:00'];
+const POSTING_TIME_OPTIONS = ['06:00', '07:00', '08:00', '09:00', '10:00', '12:00', '14:00', '17:00', '18:00', '20:00', '21:00'];
+const TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+  { value: 'UTC', label: 'UTC' },
+];
 const FREQUENCY_OPTIONS = [
   { value: 3, label: '3 Posts', desc: 'Mon / Wed / Fri' },
   { value: 5, label: '5 Posts', desc: 'Weekdays' },
@@ -43,8 +57,7 @@ export default function ContentStudioPage() {
   const [loading, setLoading] = useState(true);
   const [challenge, setChallenge] = useState<any>(null);
   const [generatingToday, setGeneratingToday] = useState(false);
-  const [generatingBatch, setGeneratingBatch] = useState(false);
-  const [batchCount, setBatchCount] = useState(7);
+  const [starting, setStarting] = useState(false);
 
   const [wizardStep, setWizardStep] = useState(0);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -52,8 +65,13 @@ export default function ContentStudioPage() {
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [postingDays, setPostingDays] = useState<string[]>(['Monday', 'Wednesday', 'Friday']);
   const [postingTime, setPostingTime] = useState('09:00');
+  const [timezone, setTimezone] = useState('America/New_York');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [reviewMode, setReviewMode] = useState(false);
-  const [starting, setStarting] = useState(false);
 
   const loadChallenge = useCallback(async () => {
     setLoading(true);
@@ -93,6 +111,8 @@ export default function ContentStudioPage() {
         postsPerWeek,
         postingDays,
         postingTime,
+        timezone,
+        startDate,
         reviewMode,
       });
       await loadChallenge();
@@ -113,18 +133,6 @@ export default function ContentStudioPage() {
       alert(err instanceof Error ? err.message : 'Failed to generate');
     } finally {
       setGeneratingToday(false);
-    }
-  };
-
-  const handleGenerateBatch = async () => {
-    setGeneratingBatch(true);
-    try {
-      await api.contentChallenge.generateBatch(batchCount);
-      await loadChallenge();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to batch generate');
-    } finally {
-      setGeneratingBatch(false);
     }
   };
 
@@ -286,12 +294,15 @@ export default function ContentStudioPage() {
             <GlassCard className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400">Step 4</span>
-                <h3 className="text-sm font-semibold text-surface-100">Select publishing time</h3>
+                <h3 className="text-sm font-semibold text-surface-100">Set schedule & time</h3>
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-4">
+
+              {/* Publishing Time */}
+              <p className="text-xs text-surface-400 mb-2">Publishing Time</p>
+              <div className="grid grid-cols-4 gap-2 mb-4">
                 {POSTING_TIME_OPTIONS.map(t => (
                   <button key={t} onClick={() => setPostingTime(t)}
-                    className={cn('p-3 rounded-lg border text-center text-sm transition-all',
+                    className={cn('p-2.5 rounded-lg border text-center text-sm transition-all',
                       postingTime === t
                         ? 'bg-brand-500/10 border-brand-500/30 text-brand-400 font-medium'
                         : 'bg-white/[0.02] border-white/5 text-surface-400 hover:bg-white/[0.04]')}>
@@ -299,6 +310,23 @@ export default function ContentStudioPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Timezone */}
+              <p className="text-xs text-surface-400 mb-2">Timezone</p>
+              <select value={timezone} onChange={e => setTimezone(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-surface-200 focus:outline-none focus:border-brand-500/30 mb-4">
+                {TIMEZONE_OPTIONS.map(tz => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+
+              {/* Start Date */}
+              <p className="text-xs text-surface-400 mb-2">Start Date</p>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-surface-200 focus:outline-none focus:border-brand-500/30 mb-4" />
+
+              {/* Review Mode */}
               <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 mb-6">
                 <button onClick={() => setReviewMode(!reviewMode)}
                   className={cn('w-10 h-5 rounded-full relative transition-all',
@@ -308,15 +336,27 @@ export default function ContentStudioPage() {
                 </button>
                 <div>
                   <p className="text-xs font-medium text-surface-200">Review Mode</p>
-                  <p className="text-[10px] text-surface-500">{reviewMode ? 'Posts need your approval before scheduling' : 'Posts auto-schedule without approval'}</p>
+                  <p className="text-[10px] text-surface-500">{reviewMode ? 'Posts need your approval before scheduling' : 'All 90 posts will be auto-scheduled at launch'}</p>
                 </div>
               </div>
+
+              {/* Summary */}
+              <div className="p-3 rounded-lg bg-brand-500/5 border border-brand-500/10 mb-6">
+                <p className="text-xs text-surface-300 font-medium mb-1">What happens at launch:</p>
+                <ul className="text-[11px] text-surface-500 space-y-0.5">
+                  <li>• All 90 posts will be generated with AI and scheduled</li>
+                  <li>• Each post is scheduled at {postingTime} ({TIMEZONE_OPTIONS.find(t => t.value === timezone)?.label})</li>
+                  <li>• Posts auto-publish to LinkedIn even when you're offline</li>
+                  <li>• Failed posts retry automatically up to 3 times</li>
+                </ul>
+              </div>
+
               <div className="flex justify-between">
                 <button onClick={() => setWizardStep(3)} className="text-sm text-surface-500 hover:text-surface-300">Back</button>
                 <button onClick={handleStartChallenge} disabled={starting}
                   className="btn-primary text-sm inline-flex items-center gap-1 disabled:opacity-50">
                   {starting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
-                  {starting ? 'Starting...' : 'Launch Challenge'}
+                  {starting ? 'Generating 90 Posts...' : 'Launch Challenge'}
                 </button>
               </div>
             </GlassCard>
@@ -333,6 +373,11 @@ export default function ContentStudioPage() {
   const publishedDays = calendar.filter((c: any) => c.status === 'published').length;
   const scheduledDays = calendar.filter((c: any) => c.status === 'scheduled').length;
   const pendingDays = calendar.filter((c: any) => c.status === 'pending').length;
+  const failedDays = calendar.filter((c: any) => c.status === 'failed').length;
+  const generatingCount = calendar.filter((c: any) => c.status === 'generating').length;
+
+  // Check if generation is still in progress
+  const isGenerating = generatingCount > 0 || (stats.postsGenerated || 0) < (calendar.filter((c: any) => c.status !== 'rest').length);
 
   return (
     <StaggerContainer className="space-y-5">
@@ -365,12 +410,12 @@ export default function ContentStudioPage() {
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {[
             { label: 'Generated', value: stats.postsGenerated || 0, icon: Sparkles, color: 'text-brand-400' },
+            { label: 'Scheduled', value: scheduledDays, icon: Calendar, color: 'text-purple-400' },
             { label: 'Published', value: stats.postsPublished || 0, icon: Send, color: 'text-green-400' },
+            { label: 'Failed', value: failedDays, icon: AlertTriangle, color: 'text-red-400' },
             { label: 'Streak', value: `${stats.currentStreak || 0}d`, icon: Flame, color: 'text-amber-400' },
             { label: 'Engagement', value: `${stats.avgEngagement || 0}%`, icon: TrendingUp, color: 'text-blue-400' },
             { label: 'Views', value: stats.profileViews || 0, icon: Eye, color: 'text-purple-400' },
-            { label: 'Growth', value: `+${stats.followerGrowth || 0}`, icon: Users, color: 'text-cyan-400' },
-            { label: 'Scheduled', value: scheduledDays, icon: Calendar, color: 'text-violet-400' },
             { label: 'Remaining', value: challenge.daysRemaining || 0, icon: Target, color: 'text-surface-400' },
           ].map((s, i) => (
             <div key={i} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-center">
@@ -381,6 +426,26 @@ export default function ContentStudioPage() {
           ))}
         </div>
       </StaggerItem>
+
+      {/* Generation Progress */}
+      {isGenerating && (
+        <StaggerItem>
+          <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+              <p className="text-xs text-amber-400 font-medium">
+                Generating posts... {stats.postsGenerated || 0} of {calendar.filter((c: any) => c.status !== 'rest').length} complete
+              </p>
+            </div>
+            <div className="h-1.5 rounded-full bg-surface-800 overflow-hidden mt-2">
+              <motion.div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${((stats.postsGenerated || 0) / Math.max(1, calendar.filter((c: any) => c.status !== 'rest').length)) * 100}%` }}
+                transition={{ duration: 0.5 }} />
+            </div>
+          </div>
+        </StaggerItem>
+      )}
 
       {/* Progress Bar */}
       <StaggerItem>
@@ -398,6 +463,7 @@ export default function ContentStudioPage() {
             <span className="text-green-400">{publishedDays} published</span>
             <span className="text-purple-400">{scheduledDays} scheduled</span>
             <span>{pendingDays} pending</span>
+            {failedDays > 0 && <span className="text-red-400">{failedDays} failed</span>}
           </div>
         </div>
       </StaggerItem>
@@ -435,33 +501,10 @@ export default function ContentStudioPage() {
         </GlassCard>
       </StaggerItem>
 
-      {/* Batch Generate */}
+      {/* Upcoming Posts */}
       <StaggerItem>
         <GlassCard className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-surface-100">Batch Generate</h3>
-              <p className="text-[11px] text-surface-500">Generate content for upcoming days</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <select value={batchCount} onChange={e => setBatchCount(Number(e.target.value))}
-                className="px-2 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs text-surface-300 focus:outline-none">
-                {[3, 5, 7, 14, 30].map(n => <option key={n} value={n}>{n} days</option>)}
-              </select>
-              <button onClick={handleGenerateBatch} disabled={generatingBatch}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500/10 border border-brand-500/20 text-xs text-brand-400 hover:bg-brand-500/20 transition-all disabled:opacity-40">
-                {generatingBatch ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                {generatingBatch ? 'Generating...' : 'Generate'}
-              </button>
-            </div>
-          </div>
-        </GlassCard>
-      </StaggerItem>
-
-      {/* Upcoming Week */}
-      <StaggerItem>
-        <GlassCard className="p-5">
-          <h3 className="text-sm font-semibold text-surface-100 mb-3">This Week</h3>
+          <h3 className="text-sm font-semibold text-surface-100 mb-3">Upcoming Posts</h3>
           <div className="space-y-2">
             {upcoming.slice(0, 7).map((entry: any, i: number) => (
               <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
@@ -474,11 +517,21 @@ export default function ContentStudioPage() {
                   <p className="text-xs font-medium text-surface-200 truncate">{entry.topic}</p>
                   <p className="text-[10px] text-surface-500">{entry.dayOfWeek} — {entry.contentType?.replace(/_/g, ' ')}</p>
                 </div>
-                <span className="text-[10px] text-surface-600">
-                  {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
+                <div className="text-right">
+                  <p className="text-[10px] text-surface-500">
+                    {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  {entry.scheduledPublishAt && (
+                    <p className="text-[9px] text-brand-400">
+                      {new Date(entry.scheduledPublishAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </p>
+                  )}
+                </div>
               </motion.div>
             ))}
+            {upcoming.length === 0 && (
+              <p className="text-xs text-surface-500 text-center py-4">No upcoming posts</p>
+            )}
           </div>
         </GlassCard>
       </StaggerItem>

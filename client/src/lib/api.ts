@@ -755,7 +755,9 @@ export const api = {
   contentChallenge: {
     get: () =>
       fetchAPI<any>('/content-challenge'),
-    start: (data: { topics: string[]; postsPerWeek: number; postingDays: string[]; postingTime: string; reviewMode: boolean }) =>
+    getStats: () =>
+      fetchAPI<any>('/content-challenge/stats'),
+    start: (data: { topics: string[]; postsPerWeek: number; postingDays: string[]; postingTime: string; timezone?: string; startDate?: string; reviewMode: boolean }) =>
       fetchAPI<any>('/content-challenge/start', { method: 'POST', body: JSON.stringify(data) }),
     generateToday: () =>
       fetchAPI<any>('/content-challenge/generate-today', { method: 'POST' }),

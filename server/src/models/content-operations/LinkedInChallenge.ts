@@ -7,6 +7,7 @@ export interface ILinkedInChallenge extends Document {
   postsPerWeek: number;
   postingDays: string[];
   postingTime: string;
+  timezone: string;
   reviewMode: boolean;
   startDate: Date;
   endDate: Date;
@@ -16,6 +17,7 @@ export interface ILinkedInChallenge extends Document {
     postsGenerated: number;
     postsPublished: number;
     postsFailed: number;
+    postsScheduled: number;
     currentStreak: number;
     longestStreak: number;
     avgEngagement: number;
@@ -25,17 +27,21 @@ export interface ILinkedInChallenge extends Document {
   calendar: {
     day: number;
     date: Date;
+    scheduledPublishAt: Date;
     dayOfWeek: string;
     contentType: string;
     pillar: string;
     topic: string;
     hook: string;
-    status: 'pending' | 'generating' | 'generated' | 'scheduled' | 'published' | 'failed';
+    status: 'pending' | 'generating' | 'generated' | 'scheduled' | 'publishing' | 'published' | 'failed' | 'retrying' | 'rest';
     postId?: mongoose.Types.ObjectId;
+    queueItemId?: mongoose.Types.ObjectId;
+    linkedinPostId?: string;
     generatedAt?: Date;
     publishedAt?: Date;
     error?: string;
     retryCount: number;
+    lastRetryAt?: Date;
   }[];
   generatedTopics: string[];
   generatedHooks: string[];
@@ -51,6 +57,7 @@ const LinkedInChallengeSchema = new Schema<ILinkedInChallenge>({
   postsPerWeek: { type: Number, default: 3 },
   postingDays: { type: [String], default: [] },
   postingTime: { type: String, default: '09:00' },
+  timezone: { type: String, default: 'America/New_York' },
   reviewMode: { type: Boolean, default: false },
   startDate: { type: Date, default: Date.now },
   endDate: { type: Date },
@@ -60,6 +67,7 @@ const LinkedInChallengeSchema = new Schema<ILinkedInChallenge>({
     postsGenerated: { type: Number, default: 0 },
     postsPublished: { type: Number, default: 0 },
     postsFailed: { type: Number, default: 0 },
+    postsScheduled: { type: Number, default: 0 },
     currentStreak: { type: Number, default: 0 },
     longestStreak: { type: Number, default: 0 },
     avgEngagement: { type: Number, default: 0 },
@@ -78,6 +86,7 @@ const LinkedInChallengeSchema = new Schema<ILinkedInChallenge>({
 });
 
 LinkedInChallengeSchema.index({ userId: 1 }, { unique: true });
+LinkedInChallengeSchema.index({ status: 1, 'calendar.scheduledPublishAt': 1 });
 
 export const LinkedInChallenge: Model<ILinkedInChallenge> = mongoose.model<ILinkedInChallenge>('LinkedInChallenge', LinkedInChallengeSchema);
 export default LinkedInChallenge;
