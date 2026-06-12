@@ -352,17 +352,20 @@ function parseLinkedInPdf(rawText: string): any {
 
   function isSectionHeader(line: string): string | null {
     const lower = line.toLowerCase().trim();
-    for (const s of SECTION_NAMES) {
-      if (lower === s || lower === s + 's') return s;
-    }
-    if (lower.startsWith('experience') && lower.length < 20) return 'experience';
-    if (lower.startsWith('education') && lower.length < 20) return 'education';
-    if (lower.startsWith('skills') && lower.length < 15) return 'skills';
-    if (lower.startsWith('about') && lower.length < 10) return 'about';
-    if (lower.startsWith('certifications') && lower.length < 25) return 'certifications';
-    if (lower.startsWith('volunteer') && lower.length < 25) return 'volunteer experience';
-    if (lower.startsWith('recommendations') && lower.length < 25) return 'recommendations';
-    if (lower.startsWith('featured') && lower.length < 15) return 'featured';
+
+    if (lower === 'about' || lower === 'summary') return 'about';
+    if (lower === 'experience' || lower === 'work experience' || lower === 'work history') return 'experience';
+    if (lower === 'education') return 'education';
+    if (lower === 'featured' || lower === 'featured media') return 'featured';
+    if (lower === 'interests' || lower === 'people also viewed') return '';
+
+    if (lower.includes('skill')) return 'skills';
+    if (lower.includes('certification') || lower.includes('license') || lower === 'courses') return 'certifications';
+    if (lower.includes('volunteer')) return 'volunteer';
+    if (lower.includes('recommendation')) return 'recommendations';
+    if (lower.includes('project') && lower.length < 20) return 'projects';
+    if (lower.includes('publication') && lower.length < 20) return 'publications';
+
     return null;
   }
 
@@ -391,7 +394,8 @@ function parseLinkedInPdf(rawText: string): any {
     const lower = line.toLowerCase().trim();
 
     const detectedSection = isSectionHeader(line);
-    if (detectedSection) {
+    if (detectedSection !== null) {
+      if (detectedSection === '') { currentSection = ''; continue; }
       if (aboutLines.length > 0 && !about) {
         about = aboutLines.join(' ').trim();
         aboutLines = [];
@@ -399,7 +403,7 @@ function parseLinkedInPdf(rawText: string): any {
       if (currentExp) { experience.push(currentExp); currentExp = null; }
       if (currentEdu) { education.push(currentEdu); currentEdu = null; }
       currentSection = detectedSection;
-      logger.debug({ line: line.substring(0, 30), section: currentSection }, 'Section detected');
+      logger.info({ line: line.substring(0, 40), section: currentSection }, 'SECTION DETECTED');
       continue;
     }
 
@@ -450,15 +454,17 @@ function parseLinkedInPdf(rawText: string): any {
     }
 
     if (currentSection === 'skills') {
-      if (!line.match(/^\d+$/) && line.length > 1 && line.length < 100) {
-        skills.push(line);
+      if (line.length > 1 && line.length < 100 && !line.match(/^\d+$/)) {
+        const cleaned = line.replace(/\s*·\s*\d+$/, '').replace(/\s*\(\d+\)$/, '').trim();
+        if (cleaned.length > 1) skills.push(cleaned);
       }
       continue;
     }
 
-    if (currentSection === 'certifications' || currentSection === 'licenses & certifications' || currentSection === 'licenses and certifications') {
-      if (!line.match(/^\d+$/) && line.length > 2) {
-        certifications.push({ name: line, authority: '', url: '' });
+    if (currentSection === 'certifications') {
+      if (line.length > 2 && !line.match(/^\d+$/)) {
+        const cleaned = line.replace(/\s*·\s*\d{4}$/, '').trim();
+        if (cleaned.length > 2) certifications.push({ name: cleaned, authority: '', url: '' });
       }
       continue;
     }

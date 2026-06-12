@@ -43,6 +43,17 @@ export function LinkedInPdfStep({ onComplete, onSkip }: LinkedInPdfStepProps) {
     setError('');
     try {
       const data = await api.onboarding.uploadLinkedInPdf(file);
+      console.log('[LinkedIn PDF] Parsed data:', {
+        fullName: data.parsed?.fullName || '(empty)',
+        headline: data.parsed?.headline || '(empty)',
+        aboutLength: data.parsed?.about?.length || 0,
+        skills: data.parsed?.skills?.length || 0,
+        skillsList: data.parsed?.skills || [],
+        experience: data.parsed?.experience?.length || 0,
+        education: data.parsed?.education?.length || 0,
+        certifications: data.parsed?.certifications?.length || 0,
+        certsList: data.parsed?.certifications?.map((c: any) => c.name) || [],
+      });
       setParsing(false);
       setParsed(true);
       onComplete({
