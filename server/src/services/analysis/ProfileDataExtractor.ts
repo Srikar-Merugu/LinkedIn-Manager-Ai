@@ -53,9 +53,19 @@ export interface ResumeData {
 export class ProfileDataExtractor {
 
   async extractLinkedInData(pdfParsedData: any, linkedinUrl: string): Promise<LinkedInProfileData> {
-    logger.info({ hasPdfData: !!pdfParsedData }, 'Extracting LinkedIn data from PDF');
+    logger.info({ hasPdfData: !!pdfParsedData, type: typeof pdfParsedData }, 'Extracting LinkedIn data from PDF');
 
     if (pdfParsedData) {
+      logger.info({
+        fullName: pdfParsedData.fullName || '(empty)',
+        headline: pdfParsedData.headline || '(empty)',
+        aboutLength: pdfParsedData.about?.length || 0,
+        experienceCount: pdfParsedData.experience?.length || 0,
+        educationCount: pdfParsedData.education?.length || 0,
+        skillsCount: pdfParsedData.skills?.length || 0,
+        certificationsCount: pdfParsedData.certifications?.length || 0,
+      }, 'PDF parsed data contents');
+
       const linkedinData: LinkedInProfileData = {
         connected: true,
         username: this.extractLinkedInUsername(linkedinUrl),

@@ -122,13 +122,14 @@ export default function DebugPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const [sections, setSections] = useState<DebugSection[]>([
-    { id: 'linkedinAnalysis', label: 'LinkedIn PDF Extracted Data', icon: <FileText className="w-4 h-4" />, color: 'bg-blue-500/20 text-blue-400', data: null, loading: false, error: null },
+    { id: 'rawPdfText', label: 'Raw PDF Text', icon: <FileText className="w-4 h-4" />, color: 'bg-orange-500/20 text-orange-400', data: null, loading: false, error: null },
+    { id: 'linkedinExtracted', label: 'LinkedIn Extracted JSON', icon: <FileText className="w-4 h-4" />, color: 'bg-blue-500/20 text-blue-400', data: null, loading: false, error: null },
     { id: 'resumeAnalysis', label: 'Resume Extracted Data', icon: <FileText className="w-4 h-4" />, color: 'bg-purple-500/20 text-purple-400', data: null, loading: false, error: null },
     { id: 'githubAnalysis', label: 'GitHub Extracted Data', icon: <Github className="w-4 h-4" />, color: 'bg-gray-500/20 text-gray-400', data: null, loading: false, error: null },
     { id: 'aiInput', label: 'AI Input', icon: <Brain className="w-4 h-4" />, color: 'bg-amber-500/20 text-amber-400', data: null, loading: false, error: null },
-    { id: 'aiOutput', label: 'AI Output', icon: <Server className="w-4 h-4" />, color: 'bg-emerald-500/20 text-emerald-400', data: null, loading: false, error: null },
+    { id: 'aiOutput', label: 'AI Output (Full Report)', icon: <Server className="w-4 h-4" />, color: 'bg-emerald-500/20 text-emerald-400', data: null, loading: false, error: null },
     { id: 'mongodbData', label: 'MongoDB Saved Data', icon: <Database className="w-4 h-4" />, color: 'bg-cyan-500/20 text-cyan-400', data: null, loading: false, error: null },
-    { id: 'onboardingState', label: 'Onboarding State', icon: <Server className="w-4 h-4" />, color: 'bg-pink-500/20 text-pink-400', data: null, loading: false, error: null },
+    { id: 'onboardingState', label: 'Onboarding State (connectedSources)', icon: <Server className="w-4 h-4" />, color: 'bg-pink-500/20 text-pink-400', data: null, loading: false, error: null },
     { id: 'dashboardData', label: 'Dashboard Data', icon: <Server className="w-4 h-4" />, color: 'bg-indigo-500/20 text-indigo-400', data: null, loading: false, error: null },
   ]);
 
@@ -155,42 +156,80 @@ export default function DebugPage() {
       async () => {
         try {
           const report = await api.report.get();
-          return report?.linkedinAnalysis || report?.analysis?.linkedinAnalysis || { note: 'No LinkedIn analysis found', rawReport: report };
+          if (!report) return { note: 'No report data found' };
+          return report.linkedinAnalysis?.rawText || report.linkedinAnalysis || { note: 'No raw PDF text found' };
         } catch { return null; }
       },
       async () => {
         try {
           const report = await api.report.get();
-          return report?.resumeAnalysis || report?.analysis?.resumeAnalysis || { note: 'No resume analysis found', rawReport: report };
+          if (!report) return null;
+          const la = report.linkedinAnalysis || {};
+          return {
+            fullName: la.fullName || '',
+            headline: la.headline || '',
+            about: la.about || '',
+            location: la.location || '',
+            experience: la.experience || [],
+            education: la.education || [],
+            skills: la.skills || [],
+            certifications: la.certifications || [],
+          };
         } catch { return null; }
       },
       async () => {
         try {
           const report = await api.report.get();
-          return report?.githubAnalysis || report?.analysis?.githubAnalysis || { note: 'No GitHub analysis found', rawReport: report };
+          if (!report) return { note: 'No resume analysis found' };
+          return report.resumeAnalysis || { note: 'No resume analysis found' };
         } catch { return null; }
       },
       async () => {
         try {
           const report = await api.report.get();
-          return report?.aiInput || report?.promptData || { note: 'No AI input data found', rawReport: report };
+          if (!report) return { note: 'No GitHub analysis found' };
+          return report.githubAnalysis || { note: 'No GitHub analysis found' };
         } catch { return null; }
       },
       async () => {
         try {
           const report = await api.report.get();
-          return report || { note: 'No report data found' };
+          if (!report) return { note: 'No AI input data found' };
+          return { profileScore: report.profileScore, scores: report.scores, contentPillars: report.contentPillars, brandDNA: report.brandDNA };
         } catch { return null; }
       },
       async () => {
         try {
           const report = await api.report.get();
-          return report || { note: 'No MongoDB data found' };
+          if (!report) return { note: 'No report data found' };
+          return { profileScore: report.profileScore, strengths: report.strengths, weaknesses: report.weaknesses, quickWins: report.quickWins, improvements: report.improvements, contentOpportunities: report.contentOpportunities, aiSummary: report.aiSummary };
         } catch { return null; }
       },
       async () => {
         try {
-          return await api.onboarding.getState();
+          const report = await api.report.get();
+          if (!report) return { note: 'No MongoDB data found' };
+          return report;
+        } catch { return null; }
+      },
+      async () => {
+        try {
+          const state = await api.onboarding.getState();
+          const cs = state?.state?.connectedSources || {};
+          const lpdf = cs.linkedin_pdf || {};
+          return {
+            linkedinPdfConnected: lpdf.connected || false,
+            linkedinPdfHeadline: lpdf.parsedData?.headline || '(empty)',
+            linkedinPdfSkills: lpdf.parsedData?.skills?.length || 0,
+            linkedinPdfExperience: lpdf.parsedData?.experience?.length || 0,
+            linkedinPdfEducation: lpdf.parsedData?.education?.length || 0,
+            linkedinPdfAboutLength: lpdf.parsedData?.about?.length || 0,
+            linkedinPdfCertifications: lpdf.parsedData?.certifications?.length || 0,
+            rawPdfDataKeys: lpdf.parsedData ? Object.keys(lpdf.parsedData) : [],
+            completedSteps: state?.state?.completedSteps || [],
+            currentStep: state?.state?.currentStep || '',
+            fullState: state?.state || {},
+          };
         } catch { return null; }
       },
       async () => {

@@ -87,6 +87,12 @@ export class OnboardingService {
     state.completedSteps.push(step);
 
     if (step === 'linkedin_pdf' && data.parsedData) {
+      const pd = data.parsedData as any;
+      logger.info({
+        headline: pd.headline || '(empty)',
+        skills: pd.skills?.length || 0,
+        experience: pd.experience?.length || 0,
+      }, 'Storing LinkedIn PDF data in onboarding state');
       (state as any).connectedSources.linkedin_pdf = {
         connected: true,
         parsedData: data.parsedData,

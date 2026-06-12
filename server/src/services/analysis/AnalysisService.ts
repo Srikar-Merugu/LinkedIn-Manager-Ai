@@ -42,6 +42,15 @@ export class AnalysisService {
     // Get LinkedIn PDF parsed data from onboarding state
     const linkedinPdfData = (state as any).connectedSources?.linkedin_pdf?.parsedData || (state as any).linkedinPdfData || null;
 
+    logger.info({
+      hasLinkedinPdf: !!linkedinPdfData,
+      headline: linkedinPdfData?.headline || '(empty)',
+      skills: linkedinPdfData?.skills?.length || 0,
+      experience: linkedinPdfData?.experience?.length || 0,
+      education: linkedinPdfData?.education?.length || 0,
+      aboutLength: linkedinPdfData?.about?.length || 0,
+    }, 'LinkedIn PDF data from onboarding state');
+
     // Extract real data from all sources
     const [linkedinData, githubData, resumeData] = await Promise.all([
       profileDataExtractor.extractLinkedInData(linkedinPdfData, linkedinUrl),
@@ -49,7 +58,16 @@ export class AnalysisService {
       profileDataExtractor.extractResumeData(resume),
     ]);
 
-    logger.info({ linkedinConnected: linkedinData.connected, githubConnected: githubData.connected, resumeSkills: resumeData.skills.length }, 'Data extraction complete');
+    logger.info({
+      linkedinConnected: linkedinData.connected,
+      linkedinName: linkedinData.fullName || '(empty)',
+      linkedinHeadline: linkedinData.headline || '(empty)',
+      linkedinSkills: linkedinData.skills.length,
+      linkedinExperience: linkedinData.experience.length,
+      linkedinEducation: linkedinData.education.length,
+      githubConnected: githubData.connected,
+      resumeSkills: resumeData.skills.length,
+    }, 'Data extraction complete');
 
     // --- 2. Run AI analysis ---
     let aiResult: AIAnalysisResult;

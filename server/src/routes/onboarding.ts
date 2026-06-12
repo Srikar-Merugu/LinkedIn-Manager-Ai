@@ -279,8 +279,18 @@ export function createOnboardingRouter(): Router {
       const data = await pdfParse(file.buffer);
       const rawText = data.text || '';
 
+      logger.info({ textLength: rawText.length, first500: rawText.substring(0, 500) }, 'Raw PDF text extracted');
+
       const parsed = parseLinkedInPdf(rawText);
-      logger.info({ textLength: rawText.length, sections: Object.keys(parsed) }, 'LinkedIn PDF parsed');
+      logger.info({
+        fullName: parsed.fullName || '(empty)',
+        headline: parsed.headline ? parsed.headline.substring(0, 60) : '(empty)',
+        aboutLength: parsed.about?.length || 0,
+        experienceCount: parsed.experience?.length || 0,
+        educationCount: parsed.education?.length || 0,
+        skillsCount: parsed.skills?.length || 0,
+        certificationsCount: parsed.certifications?.length || 0,
+      }, 'LinkedIn PDF parse result');
 
       res.json({ parsed, fileInfo: { fileName: file.originalname, fileType: file.mimetype, fileSize: file.size } });
     } catch (error: any) {
@@ -295,9 +305,18 @@ export function createOnboardingRouter(): Router {
       if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
       const { fileInfo, parsedData } = req.body;
+      logger.info({
+        hasFile: !!fileInfo,
+        hasParsed: !!parsedData,
+        headline: parsedData?.headline || '(empty)',
+        skills: parsedData?.skills?.length || 0,
+        experience: parsedData?.experience?.length || 0,
+      }, 'Storing LinkedIn PDF data');
       await onboardingService.completeStep(userId, 'linkedin_pdf', { fileInfo, parsedData });
+      logger.info('LinkedIn PDF data stored successfully');
       res.json({ success: true });
     } catch (error: any) {
+      logger.error({ error: error.message }, 'Failed to store LinkedIn PDF data');
       res.status(400).json({ error: error.message });
     }
   });
@@ -306,7 +325,10 @@ export function createOnboardingRouter(): Router {
 }
 
 function parseLinkedInPdf(rawText: string): any {
-  const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+  logger.info({ textLength: rawText.length, firstChars: rawText.substring(0, 200) }, 'Starting LinkedIn PDF parse');
+
+  const rawLines = rawText.split('\n');
+  const lines = rawLines.map((l: string) => l.trim()).filter(Boolean);
 
   let fullName = '';
   let headline = '';
@@ -326,36 +348,60 @@ function parseLinkedInPdf(rawText: string): any {
   let currentExp: any = null;
   let currentEdu: any = null;
 
+  const SECTION_NAMES = ['about', 'experience', 'education', 'skills', 'certifications', 'volunteer experience', 'volunteer', 'recommendations', 'featured', 'interests', 'people also viewed', 'licenses & certifications', 'licenses and certifications', 'projects', 'publications', 'patents', 'test scores', 'organizations'];
+
+  function isSectionHeader(line: string): string | null {
+    const lower = line.toLowerCase().trim();
+    for (const s of SECTION_NAMES) {
+      if (lower === s || lower === s + 's') return s;
+    }
+    if (lower.startsWith('experience') && lower.length < 20) return 'experience';
+    if (lower.startsWith('education') && lower.length < 20) return 'education';
+    if (lower.startsWith('skills') && lower.length < 15) return 'skills';
+    if (lower.startsWith('about') && lower.length < 10) return 'about';
+    if (lower.startsWith('certifications') && lower.length < 25) return 'certifications';
+    if (lower.startsWith('volunteer') && lower.length < 25) return 'volunteer experience';
+    if (lower.startsWith('recommendations') && lower.length < 25) return 'recommendations';
+    if (lower.startsWith('featured') && lower.length < 15) return 'featured';
+    return null;
+  }
+
+  function isDateLine(line: string): boolean {
+    return !!(
+      line.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s*-\s*(Present|(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}|\d{4})$/i) ||
+      line.match(/^\d{4}\s*-\s*(Present|\d{4})$/i) ||
+      line.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}$/i) ||
+      line.match(/^\d{1,2}\/\d{4}\s*-\s*(Present|\d{1,2}\/\d{4})$/i) ||
+      line.match(/^(Present|\d{4}\s*-\s*(?:Present|\d{4}))$/i) ||
+      line.match(/^\w+\s+\d{4}\s*-\s*(?:Present|\w+\s+\d{4})$/i)
+    );
+  }
+
+  function isLocationLine(line: string): boolean {
+    return !!(
+      line.match(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,?\s*[A-Z][a-z]+/) &&
+      line.length < 60 &&
+      !isSectionHeader(line) &&
+      !line.match(/\d{4}/)
+    );
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const lower = line.toLowerCase().trim();
 
-    if (i === 0 && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i)) {
-      fullName = line;
+    const detectedSection = isSectionHeader(line);
+    if (detectedSection) {
+      if (aboutLines.length > 0 && !about) {
+        about = aboutLines.join(' ').trim();
+        aboutLines = [];
+      }
+      if (currentExp) { experience.push(currentExp); currentExp = null; }
+      if (currentEdu) { education.push(currentEdu); currentEdu = null; }
+      currentSection = detectedSection;
+      logger.debug({ line: line.substring(0, 30), section: currentSection }, 'Section detected');
       continue;
     }
-    if (i === 1 && fullName && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i)) {
-      headline = line;
-      continue;
-    }
-    if (line.match(/^\d+\s+connections?$/i)) {
-      connections = line;
-      continue;
-    }
-    if (line.match(/^[A-Z][a-z]+(?:,\s*[A-Z][a-z]+)?$/) && !line.match(/^(Experience|Education|Skills|About|Certifications|Volunteer|Featured|Recommendations)/i) && fullName && !location) {
-      location = line;
-      continue;
-    }
-
-    if (line === 'About') { currentSection = 'about'; aboutLines = []; continue; }
-    if (line === 'Experience') { currentSection = 'experience'; if (aboutLines.length > 0 && !about) about = aboutLines.join(' ').trim(); continue; }
-    if (line === 'Education') { currentSection = 'education'; if (currentExp) { experience.push(currentExp); currentExp = null; } continue; }
-    if (line === 'Skills') { currentSection = 'skills'; if (currentEdu) { education.push(currentEdu); currentEdu = null; } continue; }
-    if (line === 'Certifications') { currentSection = 'certifications'; continue; }
-    if (line === 'Volunteer Experience') { currentSection = 'volunteer'; continue; }
-    if (line === 'Recommendations') { currentSection = 'recommendations'; continue; }
-    if (line === 'Featured') { currentSection = 'featured'; continue; }
-    if (line === 'Interests') { currentSection = ''; continue; }
-    if (line === 'People also viewed') { currentSection = ''; continue; }
 
     if (currentSection === 'about') {
       aboutLines.push(line);
@@ -363,58 +409,55 @@ function parseLinkedInPdf(rawText: string): any {
     }
 
     if (currentSection === 'experience') {
-      if (line.match(/^(Present|\d{4}\s*-\s*(?:Present|\d{4}|\w+\s+\d{4}))$/i) || line.match(/^\w+\s+\d{4}\s*-\s*(?:Present|\w+\s+\d{4})$/i)) {
+      if (isDateLine(line)) {
         if (currentExp) experience.push(currentExp);
-        currentExp = { title: '', organization: '', location: '', description: '', startDate: line, endDate: '', current: line.toLowerCase().includes('present') };
+        currentExp = { title: '', organization: '', location: '', description: '', startDate: line, endDate: '', current: lower.includes('present') };
         continue;
       }
-      if (currentExp && !currentExp.title) {
-        currentExp.title = line;
-        continue;
-      }
-      if (currentExp && !currentExp.organization) {
-        currentExp.organization = line;
-        continue;
-      }
-      if (currentExp && currentExp.title && currentExp.organization && !currentExp.location && line.length < 60 && !line.match(/^\d/)) {
-        currentExp.location = line;
-        continue;
-      }
-      if (currentExp && currentExp.title) {
+      if (currentExp) {
+        if (!currentExp.title) { currentExp.title = line; continue; }
+        if (!currentExp.organization) { currentExp.organization = line; continue; }
+        if (!currentExp.location && isLocationLine(line)) { currentExp.location = line; continue; }
         currentExp.description = currentExp.description ? currentExp.description + ' ' + line : line;
+        continue;
+      }
+      if (isDateLine(line) || line.match(/\d{4}/)) {
+        currentExp = { title: '', organization: '', location: '', description: '', startDate: line, endDate: '', current: lower.includes('present') };
+        continue;
+      }
+      if (!currentExp && line.length > 3 && line.length < 100) {
+        currentExp = { title: line, organization: '', location: '', description: '', startDate: '', endDate: '', current: false };
         continue;
       }
     }
 
     if (currentSection === 'education') {
-      if (line.match(/^\d{4}\s*-\s*\d{4}$/i) || line.match(/^\d{4}$/)) {
+      if (isDateLine(line) || line.match(/^\d{4}\s*(?:-\s*\d{4})?$/)) {
         if (currentEdu) education.push(currentEdu);
         currentEdu = { schoolName: '', degree: '', fieldOfStudy: '', startDate: line, endDate: '' };
         continue;
       }
-      if (currentEdu && !currentEdu.schoolName) {
-        currentEdu.schoolName = line;
-        continue;
-      }
-      if (currentEdu && !currentEdu.degree) {
-        currentEdu.degree = line;
-        continue;
-      }
-      if (currentEdu && currentEdu.degree) {
+      if (currentEdu) {
+        if (!currentEdu.schoolName) { currentEdu.schoolName = line; continue; }
+        if (!currentEdu.degree) { currentEdu.degree = line; continue; }
         currentEdu.fieldOfStudy = currentEdu.fieldOfStudy ? currentEdu.fieldOfStudy + ' ' + line : line;
+        continue;
+      }
+      if (line.length > 3 && line.length < 100) {
+        currentEdu = { schoolName: line, degree: '', fieldOfStudy: '', startDate: '', endDate: '' };
         continue;
       }
     }
 
     if (currentSection === 'skills') {
-      if (!line.match(/^\d+$/i) && line.length > 1 && line.length < 100) {
+      if (!line.match(/^\d+$/) && line.length > 1 && line.length < 100) {
         skills.push(line);
       }
       continue;
     }
 
-    if (currentSection === 'certifications') {
-      if (!line.match(/^\d+$/i) && line.length > 2) {
+    if (currentSection === 'certifications' || currentSection === 'licenses & certifications' || currentSection === 'licenses and certifications') {
+      if (!line.match(/^\d+$/) && line.length > 2) {
         certifications.push({ name: line, authority: '', url: '' });
       }
       continue;
@@ -425,7 +468,35 @@ function parseLinkedInPdf(rawText: string): any {
   if (currentExp) experience.push(currentExp);
   if (currentEdu) education.push(currentEdu);
 
-  return {
+  if (!fullName) {
+    for (const line of lines.slice(0, 5)) {
+      if (line.length > 2 && line.length < 80 && !isSectionHeader(line) && !line.match(/^\d/) && !line.match(/linkedin/i) && !line.match(/connections/i)) {
+        fullName = line;
+        break;
+      }
+    }
+  }
+
+  if (!headline) {
+    for (const line of lines.slice(0, 10)) {
+      if (line !== fullName && line.length > 5 && line.length < 150 && !isSectionHeader(line) && !line.match(/^\d/) && !line.match(/linkedin/i) && !line.match(/connections/i) && !isLocationLine(line)) {
+        headline = line;
+        break;
+      }
+    }
+  }
+
+  for (const line of lines) {
+    if (line.match(/^\d+\s+connections?$/i)) { connections = line; break; }
+  }
+
+  if (!location) {
+    for (const line of lines.slice(0, 15)) {
+      if (isLocationLine(line) && line !== fullName && line !== headline) { location = line; break; }
+    }
+  }
+
+  const result = {
     fullName,
     headline,
     about,
@@ -438,6 +509,18 @@ function parseLinkedInPdf(rawText: string): any {
     volunteerWork,
     recommendations,
     featured,
-    rawText: rawText.substring(0, 5000),
+    rawText: rawText.substring(0, 10000),
   };
+
+  logger.info({
+    fullName: fullName || '(empty)',
+    headline: headline ? headline.substring(0, 50) : '(empty)',
+    aboutLength: about.length,
+    experienceCount: experience.length,
+    educationCount: education.length,
+    skillsCount: skills.length,
+    certificationsCount: certifications.length,
+  }, 'LinkedIn PDF parse complete');
+
+  return result;
 }
