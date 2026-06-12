@@ -106,6 +106,13 @@ export interface IAnalysisReport extends Document {
   quickWins: { action: string; impact: string; effort: string; category: string }[];
   opportunities: { title: string; description: string; score: number; pillar: string; effort: string; timeframe: string }[];
 
+  profileScore: number;
+  profileHealth: { section: string; status: 'strong' | 'good' | 'needs_improvement' | 'missing'; details: string }[];
+  missingSections: { section: string; priority: 'high' | 'medium' | 'low'; reason: string }[];
+  improvements: { title: string; priority: 'high' | 'medium' | 'low'; impact: string; effort: string; description: string }[];
+  contentOpportunities: { topic: string; reason: string; engagementScore: number; pillar: string }[];
+  aiSummary: string;
+
   dashboardMetrics: {
     totalPosts: number;
     totalEngagement: number;
@@ -253,6 +260,13 @@ const AnalysisReportSchema = new Schema<IAnalysisReport>({
 
   quickWins: { type: [Schema.Types.Mixed] as any[], default: [] },
   opportunities: { type: [Schema.Types.Mixed] as any[], default: [] },
+
+  profileScore: { type: Number, default: 0 },
+  profileHealth: { type: [Schema.Types.Mixed] as any[], default: [] },
+  missingSections: { type: [Schema.Types.Mixed] as any[], default: [] },
+  improvements: { type: [Schema.Types.Mixed] as any[], default: [] },
+  contentOpportunities: { type: [Schema.Types.Mixed] as any[], default: [] },
+  aiSummary: { type: String, default: '' },
 
   dashboardMetrics: {
     totalPosts: { type: Number, default: 0 },

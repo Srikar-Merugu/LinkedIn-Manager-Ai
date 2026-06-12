@@ -3,35 +3,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart3,
-  Download,
-  RefreshCw,
-  Calendar,
-  FileText,
-  Share2,
-  Linkedin,
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-  Sparkles,
-  Loader2,
+  BarChart3, RefreshCw, Calendar, FileText, Share2,
+  AlertCircle, ChevronDown, ChevronRight, Sparkles, Loader2,
+  CheckCircle2, XCircle, AlertTriangle, PenSquare,
+  Download, TrendingUp,
 } from 'lucide-react';
 import { GlassCard, GlassCardHeader } from '@/components/ui/GlassCard';
 import { ScoreGauge } from '@/components/ui/ScoreGauge';
 import { StaggerContainer, StaggerItem } from '@/components/ui/MotionDiv';
-import { StrengthAnalysis } from '@/components/dashboard/StrengthAnalysis';
-import { WeaknessAnalysis } from '@/components/dashboard/WeaknessAnalysis';
-import { MissingOpportunities } from '@/components/dashboard/MissingOpportunities';
-import { ContentOpportunities } from '@/components/dashboard/ContentOpportunities';
-import { Recommendations } from '@/components/dashboard/Recommendations';
 import { api } from '@/lib/api';
-import { cn, getScoreColor } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface AnalysisReport {
   _id?: string;
   userId?: string;
   linkedinAnalysis?: any;
   resumeAnalysis?: any;
+  githubAnalysis?: any;
   scores?: {
     technicalLeadership?: number;
     contentReadiness?: number;
@@ -39,38 +28,46 @@ interface AnalysisReport {
     personalBrand?: number;
     careerOpportunity?: number;
   };
-  strengths?: { title: string; category: string; description: string; impact: 'high' | 'medium' | 'low'; score: number; evidence: string[] }[];
-  weaknesses?: { title: string; category: string; description: string; impact: 'high' | 'medium' | 'low'; score: number; evidence: string[] }[];
-  contentPillars?: { name: string; description: string; score: number; topics: string[]; authorityScore: number; engagementPotential: number; careerAlignment: number }[];
+  strengths?: { title: string; category: string; description: string; impact: string; score: number; evidence: string[] }[];
+  weaknesses?: { title: string; category: string; description: string; impact: string; score: number; evidence: string[] }[];
   brandDNA?: any;
   writingDNA?: any;
-  careerBlueprint?: any;
-  strategy90Days?: any;
-  quickWins?: { action: string; impact: string; effort: string; category: string }[];
-  opportunities?: { title: string; description: string; score: number; pillar: string; effort: string; timeframe: string }[];
+  profileScore?: number;
+  profileHealth?: { section: string; status: 'strong' | 'good' | 'needs_improvement' | 'missing'; details: string }[];
+  missingSections?: { section: string; priority: 'high' | 'medium' | 'low'; reason: string }[];
+  improvements?: { title: string; priority: 'high' | 'medium' | 'low'; impact: string; effort: string; description: string }[];
+  contentOpportunities?: { topic: string; reason: string; engagementScore: number; pillar: string }[];
+  aiSummary?: string;
   generatedAt?: string;
 }
 
-type ScoreSection = {
-  key: string;
-  label: string;
-  score: number;
-  gradient: string;
-  breakdown: Array<{ label: string; score: number; description?: string }>;
+const STATUS_CONFIG = {
+  strong: { icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20', label: 'Strong' },
+  good: { icon: CheckCircle2, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', label: 'Good' },
+  needs_improvement: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', label: 'Needs Work' },
+  missing: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'Missing' },
 };
 
-export default function IntelligenceReportPage() {
+const PRIORITY_CONFIG = {
+  high: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+  medium: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+  low: { color: 'text-surface-400', bg: 'bg-surface-500/10', border: 'border-surface-500/20' },
+};
+
+export default function LinkedInAnalysisPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    scores: true,
+    health: true,
     strengths: true,
-    weaknesses: true,
+    missing: true,
+    improvements: true,
     opportunities: true,
-    content: true,
-    recommendations: true,
+    summary: true,
   });
+  const [exporting, setExporting] = useState(false);
+  const [shareTooltip, setShareTooltip] = useState(false);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -83,18 +80,114 @@ export default function IntelligenceReportPage() {
         setReport(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load intelligence report');
+      setError(err instanceof Error ? err.message : 'Failed to load analysis');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadReport();
-  }, [loadReport]);
+  useEffect(() => { loadReport(); }, [loadReport]);
 
   const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleExportJSON = () => {
+    if (!report) return;
+    setExporting(true);
+    try {
+      const data = {
+        profileScore: report.profileScore,
+        profileHealth: report.profileHealth,
+        strengths: report.strengths,
+        weaknesses: report.weaknesses,
+        missingSections: report.missingSections,
+        improvements: report.improvements,
+        contentOpportunities: report.contentOpportunities,
+        aiSummary: report.aiSummary,
+        generatedAt: report.generatedAt,
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `linkedin-analysis-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportText = () => {
+    if (!report) return;
+    setExporting(true);
+    try {
+      const lines: string[] = [];
+      lines.push('LINKEDIN ANALYSIS REPORT');
+      lines.push(`Generated: ${report.generatedAt ? new Date(report.generatedAt).toLocaleDateString() : 'N/A'}`);
+      lines.push('');
+      lines.push(`PROFILE SCORE: ${report.profileScore || 0}/100`);
+      lines.push('');
+      lines.push('--- PROFILE HEALTH ---');
+      report.profileHealth?.forEach(h => {
+        lines.push(`[${h.status.toUpperCase()}] ${h.section}: ${h.details}`);
+      });
+      lines.push('');
+      lines.push('--- STRENGTHS ---');
+      report.strengths?.forEach(s => {
+        lines.push(`• ${s.title} (${s.impact}) — ${s.description}`);
+      });
+      lines.push('');
+      lines.push('--- MISSING SECTIONS ---');
+      report.missingSections?.forEach(m => {
+        lines.push(`[${m.priority.toUpperCase()}] ${m.section}: ${m.reason}`);
+      });
+      lines.push('');
+      lines.push('--- IMPROVEMENTS ---');
+      report.improvements?.forEach(i => {
+        lines.push(`[${i.priority.toUpperCase()}] ${i.title} — ${i.impact} (${i.effort})`);
+      });
+      lines.push('');
+      lines.push('--- CONTENT OPPORTUNITIES ---');
+      report.contentOpportunities?.forEach(c => {
+        lines.push(`• ${c.topic} (Score: ${c.engagementScore}) — ${c.reason}`);
+      });
+      lines.push('');
+      lines.push('--- AI SUMMARY ---');
+      lines.push(report.aiSummary || 'No summary available');
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `linkedin-analysis-${new Date().toISOString().split('T')[0]}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      profileScore: report?.profileScore || 0,
+      strengths: report?.strengths?.length || 0,
+      missing: report?.missingSections?.length || 0,
+    };
+    const text = `My LinkedIn Profile Score: ${shareData.profileScore}/100 | ${shareData.strengths} strengths identified | ${shareData.missing} areas to improve`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'LinkedIn Analysis', text, url: window.location.href });
+      } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        setShareTooltip(true);
+        setTimeout(() => setShareTooltip(false), 2000);
+      } catch {}
+    }
   };
 
   if (loading) {
@@ -102,7 +195,7 @@ export default function IntelligenceReportPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-brand-400 animate-spin mx-auto mb-4" />
-          <p className="text-surface-400">Loading your intelligence report...</p>
+          <p className="text-surface-400">Analyzing your LinkedIn profile...</p>
         </div>
       </div>
     );
@@ -115,14 +208,10 @@ export default function IntelligenceReportPage() {
           <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-red-400" />
           </div>
-          <h2 className="text-xl font-semibold text-surface-100 mb-3">Failed to Load Report</h2>
+          <h2 className="text-xl font-semibold text-surface-100 mb-3">Failed to Load Analysis</h2>
           <p className="text-surface-400 mb-8 leading-relaxed">{error}</p>
-          <button
-            onClick={loadReport}
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Retry
+          <button onClick={loadReport} className="btn-primary inline-flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" /> Retry
           </button>
         </div>
       </div>
@@ -136,136 +225,26 @@ export default function IntelligenceReportPage() {
           <div className="w-20 h-20 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mx-auto mb-6">
             <BarChart3 className="w-10 h-10 text-brand-400" />
           </div>
-          <h2 className="text-xl font-semibold text-surface-100 mb-3">No Intelligence Report Found</h2>
-          <p className="text-surface-400 mb-8 leading-relaxed">
-            Complete onboarding to see your intelligence report
-          </p>
-          <a
-            href="/onboarding"
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <Sparkles className="w-5 h-5" />
-            Go to Onboarding
+          <h2 className="text-xl font-semibold text-surface-100 mb-3">No Analysis Found</h2>
+          <p className="text-surface-400 mb-8 leading-relaxed">Complete onboarding to see your LinkedIn analysis</p>
+          <a href="/onboarding" className="btn-primary inline-flex items-center gap-2">
+            <Sparkles className="w-5 h-5" /> Go to Onboarding
           </a>
         </div>
       </div>
     );
   }
 
-  const scores = report.scores || {};
-  const strengths = report.strengths || [];
-  const weaknesses = report.weaknesses || [];
-  const contentPillars = report.contentPillars || [];
-  const quickWins = report.quickWins || [];
-  const opportunities = report.opportunities || [];
+  const profileScore = report.profileScore || 0;
+  const scoreLabel = profileScore >= 80 ? 'Excellent' : profileScore >= 60 ? 'Good' : profileScore >= 40 ? 'Needs Improvement' : 'Getting Started';
+  const scoreColor = profileScore >= 80 ? 'text-green-400' : profileScore >= 60 ? 'text-blue-400' : profileScore >= 40 ? 'text-amber-400' : 'text-red-400';
 
-  const scoreSections: ScoreSection[] = [
-    {
-      key: 'technicalLeadership',
-      label: 'Technical Leadership',
-      score: scores.technicalLeadership || 0,
-      gradient: 'from-brand-500 to-brand-600',
-      breakdown: (strengths || []).filter(s => s.category === 'technical').map(s => ({
-        label: s.title,
-        score: s.score || 0,
-        description: s.description,
-      })),
-    },
-    {
-      key: 'contentReadiness',
-      label: 'Content Readiness',
-      score: scores.contentReadiness || 0,
-      gradient: 'from-rose-500 to-rose-600',
-      breakdown: (contentPillars || []).map(p => ({
-        label: p.name,
-        score: p.score || 0,
-        description: p.description,
-      })),
-    },
-    {
-      key: 'industryAuthority',
-      label: 'Industry Authority',
-      score: scores.industryAuthority || 0,
-      gradient: 'from-amber-500 to-amber-600',
-      breakdown: (strengths || []).filter(s => s.category === 'authority' || s.category === 'industry').map(s => ({
-        label: s.title,
-        score: s.score || 0,
-        description: s.description,
-      })),
-    },
-    {
-      key: 'personalBrand',
-      label: 'Personal Brand',
-      score: scores.personalBrand || 0,
-      gradient: 'from-accent-500 to-accent-600',
-      breakdown: (strengths || []).filter(s => s.category === 'brand' || s.category === 'personal').map(s => ({
-        label: s.title,
-        score: s.score || 0,
-        description: s.description,
-      })),
-    },
-    {
-      key: 'careerOpportunity',
-      label: 'Career Opportunity',
-      score: scores.careerOpportunity || 0,
-      gradient: 'from-purple-500 to-purple-600',
-      breakdown: (weaknesses || []).filter(w => w.category === 'career' || w.category === 'opportunity').map(w => ({
-        label: w.title,
-        score: w.score || 0,
-        description: w.description,
-      })),
-    },
-  ];
-
-  const overallScore = Math.round(
-    (scores.technicalLeadership || 0) +
-    (scores.contentReadiness || 0) +
-    (scores.industryAuthority || 0) +
-    (scores.personalBrand || 0) +
-    (scores.careerOpportunity || 0)
-  ) / 5;
-
-  const mappedContentOpportunities = (contentPillars || []).map(pillar => ({
-    id: pillar.name,
-    topic: pillar.name,
-    angle: pillar.description,
-    format: 'post' as const,
-    confidence: pillar.score || 0,
-    reason: (pillar.topics || []).join(', '),
-    suggestedHook: `Authority Score: ${pillar.authorityScore || 0}/100`,
-    suggestedCTA: `Engagement Potential: ${pillar.engagementPotential || 0}%`,
-  }));
-
-  const mappedMissingOpportunities = (opportunities || []).map((opp, index) => ({
-    id: `opp-${index}`,
-    category: opp.pillar || 'General',
-    title: opp.title,
-    description: opp.description,
-    potentialImpact: `Score: ${opp.score || 0}/100`,
-    effortToFix: (opp.effort as 'low' | 'medium' | 'high') || 'medium',
-  }));
-
-  const mappedRecommendations = (quickWins || []).map((qw, index) => ({
-    id: `qw-${index}`,
-    type: qw.category || 'general',
-    priority: qw.effort === 'low' ? 'high' as const : qw.effort === 'medium' ? 'medium' as const : 'low' as const,
-    title: qw.action,
-    description: qw.impact,
-    actions: [qw.action],
-    expectedImpact: qw.impact,
-    effort: (qw.effort as 'low' | 'medium' | 'high') || 'medium',
-    timeframe: 'immediate' as const,
-    metrics: { current: 0, target: 0 },
-  }));
-
-  const quickWinRecommendations = mappedRecommendations.filter(
-    r => r.effort === 'low' && r.priority === 'high'
-  );
-
-  const positioning = report.brandDNA?.positioning || '';
+  const healthCount = { strong: 0, good: 0, needs_improvement: 0, missing: 0 };
+  report.profileHealth?.forEach(h => { healthCount[h.status as keyof typeof healthCount]++; });
 
   return (
-    <StaggerContainer className="space-y-8">
+    <StaggerContainer className="space-y-6">
+      {/* Header */}
       <StaggerItem>
         <div className="flex items-start justify-between">
           <div>
@@ -273,269 +252,340 @@ export default function IntelligenceReportPage() {
               <div className="p-2 rounded-lg bg-brand-500/10">
                 <BarChart3 className="w-5 h-5 text-brand-400" />
               </div>
-              <h1 className="text-2xl font-bold text-surface-100">
-                LinkedIn Intelligence Report
-              </h1>
+              <h1 className="text-2xl font-bold text-surface-100">LinkedIn Analysis</h1>
             </div>
-            <p className="text-surface-400 ml-12">
-              Comprehensive analysis of your LinkedIn presence and recommendations for growth
-            </p>
+            <p className="text-surface-400 ml-12">Complete profile analysis and improvement roadmap</p>
           </div>
-
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs text-surface-500">
               <Calendar className="w-3.5 h-3.5" />
-              {report.generatedAt
-                ? new Date(report.generatedAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : 'N/A'}
+              {report.generatedAt ? new Date(report.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
             </div>
-            <button className="btn-secondary gap-2 text-sm">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <button className="btn-ghost gap-2 text-sm">
-              <Share2 className="w-4 h-4" />
-              Share
-            </button>
+            <div className="relative">
+              <button onClick={handleExportJSON} disabled={exporting} className="btn-secondary gap-2 text-sm">
+                <Download className="w-4 h-4" /> Export
+              </button>
+            </div>
+            <div className="relative">
+              <button onClick={handleShare} className="btn-ghost gap-2 text-sm">
+                <Share2 className="w-4 h-4" /> Share
+              </button>
+              <AnimatePresence>
+                {shareTooltip && (
+                  <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="absolute right-0 top-full mt-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-400 whitespace-nowrap z-10">
+                    Copied to clipboard!
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </StaggerItem>
 
+      {/* Section 1: Profile Score */}
       <StaggerItem>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {scoreSections.map(({ key, label, score }) => (
-            <GlassCard key={key} className="text-center p-6" hover>
-              <ScoreGauge
-                score={score || 0}
-                label={label}
-                size="sm"
-              />
-            </GlassCard>
-          ))}
-        </div>
+        <GlassCard glow className="p-8">
+          <div className="flex items-center gap-8">
+            <div className="flex-shrink-0">
+              <ScoreGauge score={profileScore} label="Profile Score" size="lg" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <h2 className={`text-3xl font-bold ${scoreColor}`}>{profileScore}/100</h2>
+                <span className={cn('px-3 py-1 rounded-full text-sm font-medium', scoreColor.replace('text-', 'bg-').replace('400', '500/10'), scoreColor)}>
+                  {scoreLabel}
+                </span>
+              </div>
+              <p className="text-surface-400 text-sm leading-relaxed max-w-xl">
+                {profileScore >= 80
+                  ? 'Your profile is strong. Focus on consistent content creation to maintain momentum.'
+                  : profileScore >= 60
+                  ? 'Your profile is solid. Address the missing sections below to reach excellence.'
+                  : profileScore >= 40
+                  ? 'Your profile has a good foundation. Complete the key sections to improve visibility.'
+                  : 'Start by completing the essential profile sections to build your presence.'}
+              </p>
+              <div className="flex items-center gap-6 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-xs text-surface-400">{healthCount.strong} Strong</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="text-xs text-surface-400">{healthCount.good} Good</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-xs text-surface-400">{healthCount.needs_improvement} Needs Work</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-xs text-surface-400">{healthCount.missing} Missing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </GlassCard>
       </StaggerItem>
 
+      {/* Section 2: Profile Health */}
       <StaggerItem>
         <GlassCard>
           <GlassCardHeader
-            title="Score Breakdown"
-            description="Detailed view of all scoring dimensions"
+            title="Profile Health"
+            description="Status of each profile section"
             action={
-              <button
-                onClick={() => toggleSection('scores')}
-                className="btn-ghost p-1"
-              >
-                {expandedSections.scores ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
+              <button onClick={() => toggleSection('health')} className="btn-ghost p-1">
+                {expandedSections.health ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
             }
           />
-
           <AnimatePresence>
-            {expandedSections.scores && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-8 overflow-hidden"
-              >
-                {scoreSections.map(({ key, label, score, gradient, breakdown }) => (
-                  <div key={key}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${gradient}`} />
-                      <h3 className="text-sm font-semibold text-surface-200">
-                        {label}
-                      </h3>
-                      <span className={cn('text-sm font-bold', getScoreColor(score || 0))}>
-                        {(score || 0)}/100
-                      </span>
-                    </div>
-
-                    {breakdown.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {breakdown.map((item) => (
-                          <div
-                            key={item.label}
-                            className="glass rounded-xl p-4"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-surface-400">
-                                {item.label}
-                              </span>
-                              <span className={cn('text-xs font-bold', getScoreColor(item.score || 0))}>
-                                {item.score || 0}%
-                              </span>
-                            </div>
-                            <div className="w-full h-1.5 rounded-full bg-surface-800 overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${item.score || 0}%` }}
-                                transition={{ duration: 1, delay: 0.2 }}
-                                className={cn('h-full rounded-full', `bg-gradient-to-r ${gradient}`)}
-                              />
-                            </div>
-                            {item.description && (
-                              <p className="text-xs text-surface-500 mt-2">{item.description}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+            {expandedSections.health && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {report.profileHealth?.map((item, i) => {
+                    const config = STATUS_CONFIG[item.status];
+                    const Icon = config.icon;
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                        className={cn('p-3 rounded-xl border', config.bg, config.border)}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Icon className={cn('w-4 h-4', config.color)} />
+                          <span className="text-xs font-semibold text-surface-200">{item.section}</span>
+                        </div>
+                        <p className={cn('text-[10px] font-medium uppercase', config.color)}>{config.label}</p>
+                        <p className="text-[10px] text-surface-500 mt-1 truncate">{item.details}</p>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </GlassCard>
       </StaggerItem>
 
+      {/* Section 3: Profile Strengths */}
       <StaggerItem>
         <GlassCard>
           <GlassCardHeader
-            title="Analysis Summary"
-            description="AI-generated overview of your LinkedIn profile"
+            title="Profile Strengths"
+            description="What your profile does well"
             action={
-              <div className="flex items-center gap-2 text-xs text-surface-500">
-                <Sparkles className="w-3.5 h-3.5" />
-                AI Generated
-              </div>
+              <button onClick={() => toggleSection('strengths')} className="btn-ghost p-1">
+                {expandedSections.strengths ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
             }
           />
-          <p className="text-surface-300 leading-relaxed">
-            {positioning || 'Complete your analysis to see a summary of your profile.'}
-          </p>
+          <AnimatePresence>
+            {expandedSections.strengths && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {report.strengths?.slice(0, 6).map((item, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                      className="flex items-start gap-3 p-3 rounded-xl bg-green-500/5 border border-green-500/10">
+                      <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-surface-200">{item.title}</p>
+                        <p className="text-xs text-surface-500 mt-0.5">{item.description}</p>
+                        {item.evidence?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.evidence.slice(0, 3).map((e, j) => (
+                              <span key={j} className="px-1.5 py-0.5 rounded text-[9px] bg-green-500/10 text-green-400">{e}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </GlassCard>
       </StaggerItem>
 
-      {/* Voice Profile + Career Direction */}
+      {/* Section 4: Missing Sections */}
       <StaggerItem>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Voice Profile */}
-          <GlassCard>
-            <GlassCardHeader title="Voice Profile" description="Your unique writing and communication style" />
-            <div className="space-y-4">
-              {report.writingDNA ? (
-                <>
-                  {report.writingDNA.tone && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Tone</p>
-                      <p className="text-sm text-surface-200">{typeof report.writingDNA.tone === 'string' ? report.writingDNA.tone : report.writingDNA.tone.primary || JSON.stringify(report.writingDNA.tone)}</p>
-                    </div>
-                  )}
-                  {report.writingDNA.style && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Writing Style</p>
-                      <p className="text-sm text-surface-200">{typeof report.writingDNA.style === 'string' ? report.writingDNA.style : report.writingDNA.style.primary || JSON.stringify(report.writingDNA.style)}</p>
-                    </div>
-                  )}
-                  {report.writingDNA.storytelling && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Storytelling Pattern</p>
-                      <p className="text-sm text-surface-200">{typeof report.writingDNA.storytelling === 'string' ? report.writingDNA.storytelling : report.writingDNA.storytelling.pattern || JSON.stringify(report.writingDNA.storytelling)}</p>
-                    </div>
-                  )}
-                  {report.writingDNA.vocabulary && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Vocabulary</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(Array.isArray(report.writingDNA.vocabulary) ? report.writingDNA.vocabulary : report.writingDNA.vocabulary?.keywords || []).slice(0, 8).map((w: string, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.05] text-xs text-surface-300">{w}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-surface-500">Voice profile will be generated after onboarding analysis.</p>
-              )}
-            </div>
-          </GlassCard>
-
-          {/* Career Direction */}
-          <GlassCard>
-            <GlassCardHeader title="Career Direction" description="Career goals and growth opportunities" />
-            <div className="space-y-4">
-              {report.careerBlueprint ? (
-                <>
-                  {report.careerBlueprint.targetRole && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Target Role</p>
-                      <p className="text-sm text-surface-200">{report.careerBlueprint.targetRole}</p>
-                    </div>
-                  )}
-                  {report.careerBlueprint.careerGoals?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Career Goals</p>
-                      <div className="space-y-1">
-                        {report.careerBlueprint.careerGoals.slice(0, 4).map((g: any, i: number) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-surface-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                            {typeof g === 'string' ? g : g.goal || g.title || JSON.stringify(g)}
+        <GlassCard>
+          <GlassCardHeader
+            title="Missing Sections"
+            description="Critical gaps in your profile"
+            action={
+              <button onClick={() => toggleSection('missing')} className="btn-ghost p-1">
+                {expandedSections.missing ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            }
+          />
+          <AnimatePresence>
+            {expandedSections.missing && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                {(!report.missingSections || report.missingSections.length === 0) ? (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-3" />
+                    <p className="text-sm text-surface-300">Your profile is complete! No critical gaps found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {report.missingSections.map((item, i) => {
+                      const pConfig = PRIORITY_CONFIG[item.priority];
+                      return (
+                        <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                          <span className={cn('px-2 py-0.5 rounded text-[9px] font-bold uppercase', pConfig.bg, pConfig.color, pConfig.border)}>
+                            {item.priority}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-surface-200">{item.section}</p>
+                            <p className="text-xs text-surface-500">{item.reason}</p>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {report.careerBlueprint.skillGaps?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Skill Gaps</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {report.careerBlueprint.skillGaps.slice(0, 5).map((s: any, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-amber-500/10 text-xs text-amber-400 border border-amber-500/20">
-                            {typeof s === 'string' ? s : s.skill || s.name || JSON.stringify(s)}
+                          <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </GlassCard>
+      </StaggerItem>
+
+      {/* Section 5: Improvement Suggestions */}
+      <StaggerItem>
+        <GlassCard>
+          <GlassCardHeader
+            title="Improvement Suggestions"
+            description="Prioritized actions to boost your profile"
+            action={
+              <button onClick={() => toggleSection('improvements')} className="btn-ghost p-1">
+                {expandedSections.improvements ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            }
+          />
+          <AnimatePresence>
+            {expandedSections.improvements && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {report.improvements?.map((item, i) => {
+                    const pConfig = PRIORITY_CONFIG[item.priority];
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                        className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={cn('px-2 py-0.5 rounded text-[9px] font-bold uppercase', pConfig.bg, pConfig.color, pConfig.border)}>
+                            {item.priority}
                           </span>
-                        ))}
+                          <span className="text-[10px] text-surface-500">{item.effort}</span>
+                        </div>
+                        <h4 className="text-sm font-semibold text-surface-200 mb-1">{item.title}</h4>
+                        <p className="text-xs text-surface-500 mb-2">{item.description}</p>
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp className="w-3 h-3 text-green-400" />
+                          <span className="text-[10px] text-green-400">{item.impact}</span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </GlassCard>
+      </StaggerItem>
+
+      {/* Section 6: Content Opportunities */}
+      <StaggerItem>
+        <GlassCard>
+          <GlassCardHeader
+            title="Content Opportunities"
+            description="AI-generated post ideas based on your profile"
+            action={
+              <button onClick={() => toggleSection('opportunities')} className="btn-ghost p-1">
+                {expandedSections.opportunities ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            }
+          />
+          <AnimatePresence>
+            {expandedSections.opportunities && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                <div className="space-y-2">
+                  {report.contentOpportunities?.map((item, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                      className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500/20 to-accent-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-brand-400">{item.engagementScore}</span>
                       </div>
-                    </div>
-                  )}
-                  {report.careerBlueprint.suggestedTopics?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-surface-400 uppercase tracking-wider mb-1">Suggested Content Topics</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {report.careerBlueprint.suggestedTopics.slice(0, 5).map((t: any, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-brand-500/10 text-xs text-brand-400 border border-brand-500/20">
-                            {typeof t === 'string' ? t : t.topic || t.title || JSON.stringify(t)}
-                          </span>
-                        ))}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-surface-200">{item.topic}</p>
+                        <p className="text-xs text-surface-500">{item.reason}</p>
+                        <span className="text-[10px] text-surface-600 uppercase">{item.pillar}</span>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-surface-500">Career direction will be generated after onboarding analysis.</p>
-              )}
-            </div>
-          </GlassCard>
-        </div>
+                      <Link href={`/dashboard/content-studio?topic=${encodeURIComponent(item.topic)}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500/10 text-brand-400 text-xs font-medium hover:bg-brand-500/20 transition-colors flex-shrink-0">
+                        <PenSquare className="w-3 h-3" /> Generate
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </GlassCard>
       </StaggerItem>
 
+      {/* Section 7: AI Summary */}
       <StaggerItem>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StrengthAnalysis strengths={strengths} />
-          <WeaknessAnalysis weaknesses={weaknesses} />
-        </div>
+        <GlassCard>
+          <GlassCardHeader
+            title="AI Summary"
+            description="AI-generated overview of your profile"
+            action={
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-surface-500">
+                  <Sparkles className="w-3.5 h-3.5" /> AI Generated
+                </div>
+                <button onClick={() => toggleSection('summary')} className="btn-ghost p-1">
+                  {expandedSections.summary ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+              </div>
+            }
+          />
+          <AnimatePresence>
+            {expandedSections.summary && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
+                <p className="text-surface-300 leading-relaxed text-sm">
+                  {report.aiSummary || 'Complete your analysis to see an AI-generated summary of your profile.'}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </GlassCard>
       </StaggerItem>
 
+      {/* Export Options */}
       <StaggerItem>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MissingOpportunities opportunities={mappedMissingOpportunities} />
-          <ContentOpportunities opportunities={mappedContentOpportunities} />
-        </div>
-      </StaggerItem>
-
-      <StaggerItem>
-        <Recommendations
-          recommendations={mappedRecommendations}
-          quickWins={quickWinRecommendations}
-        />
+        <GlassCard>
+          <GlassCardHeader title="Export Report" description="Download your analysis in different formats" />
+          <div className="flex items-center gap-3">
+            <button onClick={handleExportJSON} disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 hover:bg-white/[0.05] transition-all">
+              <FileText className="w-4 h-4" /> Export JSON
+            </button>
+            <button onClick={handleExportText} disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 hover:bg-white/[0.05] transition-all">
+              <Download className="w-4 h-4" /> Export Text
+            </button>
+            <button onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-surface-300 hover:text-surface-100 hover:bg-white/[0.05] transition-all">
+              <Share2 className="w-4 h-4" /> Share Summary
+            </button>
+          </div>
+        </GlassCard>
       </StaggerItem>
     </StaggerContainer>
   );

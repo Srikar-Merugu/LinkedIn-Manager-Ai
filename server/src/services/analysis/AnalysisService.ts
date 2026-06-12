@@ -52,6 +52,13 @@ export class AnalysisService {
     const quickWins = this.generateQuickWins(resumeData, linkedinData, githubData, scores);
     const opportunities = this.generateOpportunities(resumeData, linkedinData, githubData, careerGoals, contentPillars);
 
+    const profileScore = this.calculateProfileScore(resumeData, linkedinData, githubData, scores);
+    const profileHealth = this.generateProfileHealth(resumeData, linkedinData, githubData);
+    const missingSections = this.generateMissingSections(resumeData, linkedinData, githubData);
+    const improvements = this.generateImprovements(resumeData, linkedinData, githubData, scores);
+    const contentOpportunitiesNew = this.generateContentOpportunities(resumeData, linkedinData, githubData, careerGoals, contentPillars);
+    const aiSummary = this.generateAISummary(user.fullName, resumeData, linkedinData, githubData, scores, strengths, weaknesses, contentPillars);
+
     const report = await AnalysisReport.findOneAndUpdate(
       { userId: new mongoose.Types.ObjectId(userId) },
       {
@@ -74,6 +81,12 @@ export class AnalysisService {
         contentCalendar,
         quickWins,
         opportunities,
+        profileScore,
+        profileHealth,
+        missingSections,
+        improvements,
+        contentOpportunities: contentOpportunitiesNew,
+        aiSummary,
         dashboardMetrics: {
           totalPosts: 0,
           totalEngagement: 0,
@@ -608,6 +621,302 @@ export class AnalysisService {
     }
 
     return opps.slice(0, 8);
+  }
+
+  private calculateProfileScore(resumeData: any, linkedinData: any, githubData: any, scores: any): number {
+    let score = 0;
+
+    const avgScore = (
+      (scores.technicalLeadership || 0) +
+      (scores.contentReadiness || 0) +
+      (scores.industryAuthority || 0) +
+      (scores.personalBrand || 0) +
+      (scores.careerOpportunity || 0)
+    ) / 5;
+    score = avgScore * 0.5;
+
+    let profileItems = 0;
+    let profileComplete = 0;
+    if (linkedinData?.headline) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (linkedinData?.about) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (linkedinData?.experience?.length > 0) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (linkedinData?.skills?.length > 0) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (resumeData?.projects?.length > 0) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (resumeData?.certifications?.length > 0) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+    if (githubData?.connected) { profileItems++; profileComplete++; }
+    else { profileItems++; }
+
+    score += (profileComplete / profileItems) * 50;
+
+    return Math.min(100, Math.round(score));
+  }
+
+  private generateProfileHealth(resumeData: any, linkedinData: any, githubData: any): any[] {
+    const health: any[] = [];
+
+    health.push({
+      section: 'Headline',
+      status: linkedinData?.headline ? (linkedinData.headline.length > 30 ? 'strong' : 'good') : 'missing',
+      details: linkedinData?.headline || 'No headline set',
+    });
+
+    health.push({
+      section: 'About Section',
+      status: linkedinData?.about ? (linkedinData.about.length > 100 ? 'strong' : 'needs_improvement') : 'missing',
+      details: linkedinData?.about ? `${linkedinData.about.length} characters` : 'No about section',
+    });
+
+    health.push({
+      section: 'Experience',
+      status: linkedinData?.experience?.length > 0 ? (linkedinData.experience.length >= 3 ? 'strong' : 'good') : 'missing',
+      details: linkedinData?.experience?.length > 0 ? `${linkedinData.experience.length} positions` : 'No experience listed',
+    });
+
+    health.push({
+      section: 'Skills',
+      status: linkedinData?.skills?.length > 0 ? (linkedinData.skills.length >= 10 ? 'strong' : 'needs_improvement') : 'missing',
+      details: linkedinData?.skills?.length > 0 ? `${linkedinData.skills.length} skills` : 'No skills listed',
+    });
+
+    health.push({
+      section: 'Projects',
+      status: resumeData?.projects?.length > 0 ? (resumeData.projects.length >= 3 ? 'strong' : 'good') : 'missing',
+      details: resumeData?.projects?.length > 0 ? `${resumeData.projects.length} projects` : 'No projects featured',
+    });
+
+    health.push({
+      section: 'Certifications',
+      status: resumeData?.certifications?.length > 0 ? 'strong' : 'missing',
+      details: resumeData?.certifications?.length > 0 ? `${resumeData.certifications.length} certifications` : 'No certifications',
+    });
+
+    health.push({
+      section: 'GitHub',
+      status: githubData?.connected ? (githubData.repos >= 5 ? 'strong' : 'good') : 'missing',
+      details: githubData?.connected ? `${githubData.repos} repos` : 'GitHub not connected',
+    });
+
+    health.push({
+      section: 'Profile Photo',
+      status: 'good',
+      details: 'Profile photo present',
+    });
+
+    return health;
+  }
+
+  private generateMissingSections(resumeData: any, linkedinData: any, githubData: any): any[] {
+    const missing: any[] = [];
+
+    if (!linkedinData?.about) missing.push({ section: 'About Section', priority: 'high', reason: 'A strong About section improves profile views by 40%' });
+    if (!linkedinData?.headline || linkedinData.headline.length < 20) missing.push({ section: 'Headline', priority: 'high', reason: 'Your headline is the first thing recruiters see' });
+    if (!linkedinData?.experience?.length) missing.push({ section: 'Work Experience', priority: 'high', reason: 'Experience establishes professional credibility' });
+    if (!linkedinData?.skills?.length || linkedinData.skills.length < 5) missing.push({ section: 'Skills', priority: 'medium', reason: 'Skills help you appear in search results' });
+    if (!resumeData?.projects?.length) missing.push({ section: 'Featured Projects', priority: 'high', reason: 'Projects demonstrate practical abilities' });
+    if (!resumeData?.certifications?.length) missing.push({ section: 'Certifications', priority: 'medium', reason: 'Certifications validate your expertise' });
+    if (!githubData?.connected) missing.push({ section: 'GitHub Profile', priority: 'medium', reason: 'GitHub showcases your technical work' });
+
+    return missing;
+  }
+
+  private generateImprovements(resumeData: any, linkedinData: any, githubData: any, scores: any): any[] {
+    const improvements: any[] = [];
+
+    if (!linkedinData?.about || linkedinData.about.length < 100) {
+      improvements.push({
+        title: 'Improve About Section',
+        priority: 'high',
+        impact: 'Increase profile views and connection requests',
+        effort: '20 mins',
+        description: 'Write a compelling 3-paragraph About section highlighting your journey, skills, and what you are looking for',
+      });
+    }
+
+    if (!linkedinData?.headline || linkedinData.headline.length < 30) {
+      improvements.push({
+        title: 'Optimize Headline',
+        priority: 'high',
+        impact: 'Appear in more search results',
+        effort: '10 mins',
+        description: 'Include your role, key skills, and value proposition in your headline',
+      });
+    }
+
+    if (resumeData?.projects?.length === 0) {
+      improvements.push({
+        title: 'Add Featured Projects',
+        priority: 'high',
+        impact: 'Demonstrate practical skills and initiative',
+        effort: '30 mins',
+        description: 'Showcase your top 3 projects with links and descriptions',
+      });
+    }
+
+    if (linkedinData?.skills?.length < 10) {
+      improvements.push({
+        title: 'Add More Skills',
+        priority: 'medium',
+        impact: 'Appear in skill-based searches',
+        effort: '10 mins',
+        description: 'Add at least 10 relevant skills to improve discoverability',
+      });
+    }
+
+    if (resumeData?.certifications?.length === 0) {
+      improvements.push({
+        title: 'Add Certifications',
+        priority: 'medium',
+        impact: 'Validate expertise and build trust',
+        effort: '20 mins',
+        description: 'Add industry-recognized certifications to strengthen credibility',
+      });
+    }
+
+    if (!githubData?.connected) {
+      improvements.push({
+        title: 'Connect GitHub',
+        priority: 'medium',
+        impact: 'Enable AI to suggest technical content',
+        effort: '5 mins',
+        description: 'Link your GitHub to unlock AI-powered content suggestions',
+      });
+    }
+
+    if (scores.personalBrand < 30) {
+      improvements.push({
+        title: 'Build Personal Brand',
+        priority: 'high',
+        impact: 'Increase visibility and recognition',
+        effort: '1 hour/week',
+        description: 'Start posting regularly and engaging with your network',
+      });
+    }
+
+    return improvements.slice(0, 6);
+  }
+
+  private generateContentOpportunities(resumeData: any, linkedinData: any, githubData: any, careerGoals: string[], pillars: any[]): any[] {
+    const opps: any[] = [];
+
+    if (resumeData?.experience?.length > 0) {
+      const roles = resumeData.experience.slice(0, 3);
+      roles.forEach((exp: any) => {
+        opps.push({
+          topic: `${exp.title || 'Role'} Lessons`,
+          reason: `Share insights from your experience as ${exp.title || 'a professional'}`,
+          engagementScore: 75,
+          pillar: 'Career Growth',
+        });
+      });
+    }
+
+    if (resumeData?.projects?.length > 0) {
+      resumeData.projects.slice(0, 2).forEach((p: any) => {
+        opps.push({
+          topic: `${p.name || 'Project'} Deep Dive`,
+          reason: `Technical breakdown of building ${p.name || 'this project'}`,
+          engagementScore: 80,
+          pillar: 'Technical',
+        });
+      });
+    }
+
+    if (githubData?.connected) {
+      opps.push({
+        topic: 'Open Source Journey',
+        reason: 'Share what you learned contributing to open source',
+        engagementScore: 70,
+        pillar: 'Open Source',
+      });
+    }
+
+    if (careerGoals.includes('job_search')) {
+      opps.push({
+        topic: 'Job Search Tips',
+        reason: 'Share your job search strategy and interview tips',
+        engagementScore: 85,
+        pillar: 'Career Growth',
+      });
+    }
+
+    if (resumeData?.skills?.some((s: string) => /machine.?learning|ai|deep.?learning/i.test(s))) {
+      opps.push({
+        topic: 'AI/ML Project Walkthrough',
+        reason: 'Technical deep dive into your AI projects',
+        engagementScore: 90,
+        pillar: 'AI & Machine Learning',
+      });
+    }
+
+    if (resumeData?.skills?.some((s: string) => /react|vue|angular|next/i.test(s))) {
+      opps.push({
+        topic: 'Frontend Architecture Tips',
+        reason: 'Share frontend best practices and patterns',
+        engagementScore: 75,
+        pillar: 'Frontend',
+      });
+    }
+
+    return opps.slice(0, 5);
+  }
+
+  private generateAISummary(name: string, resumeData: any, linkedinData: any, githubData: any, scores: any, strengths: any[], weaknesses: any[], pillars: any[]): string {
+    const firstName = name.split(' ')[0] || 'The user';
+    const hasLinkedIn = linkedinData?.connected;
+    const hasGitHub = githubData?.connected;
+    const hasResume = resumeData?.skills?.length > 0;
+
+    const parts: string[] = [];
+
+    parts.push(`${firstName} is a professional`);
+
+    if (resumeData?.currentRole) {
+      parts[parts.length - 1] += ` working as ${resumeData.currentRole}`;
+    } else if (resumeData?.totalExperienceYears > 0) {
+      parts[parts.length - 1] += ` with ${resumeData.totalExperienceYears} years of experience`;
+    }
+    parts[parts.length - 1] += '.';
+
+    if (hasLinkedIn) {
+      parts.push('The LinkedIn profile is connected');
+      if (linkedinData.experience?.length > 0) {
+        parts.push(`with ${linkedinData.experience.length} positions listed`);
+      }
+      parts.push('.');
+    } else {
+      parts.push('The LinkedIn profile is not yet connected.');
+    }
+
+    if (hasGitHub && githubData.repos > 0) {
+      parts.push(`GitHub profile has ${githubData.repos} repositories`);
+      if (githubData.languages?.length > 0) {
+        parts.push(`primarily using ${githubData.languages.slice(0, 3).join(', ')}`);
+      }
+      parts.push('.');
+    }
+
+    const topStrengths = strengths.slice(0, 2).map((s: any) => s.title.toLowerCase());
+    if (topStrengths.length > 0) {
+      parts.push(`Key strengths include ${topStrengths.join(' and ')}.`);
+    }
+
+    const topWeaknesses = weaknesses.slice(0, 2).map((w: any) => w.title.toLowerCase());
+    if (topWeaknesses.length > 0) {
+      parts.push(`Areas for improvement: ${topWeaknesses.join(' and ')}.`);
+    }
+
+    if (pillars.length > 0) {
+      const topPillars = pillars.slice(0, 2).map((p: any) => p.name);
+      parts.push(`Recommended content focus: ${topPillars.join(' and ')}.`);
+    }
+
+    return parts.join(' ');
   }
 }
 
