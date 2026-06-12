@@ -89,7 +89,7 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
   currentStep: {
     type: String,
     enum: [
-      'welcome', 'connect_linkedin', 'upload_resume', 'connect_github',
+      'welcome', 'linkedin_pdf', 'connect_linkedin', 'upload_resume', 'connect_github',
       'connect_portfolio', 'career_goals', 'content_experience',
       'voice_training', 'ai_analysis', 'results',
     ],
@@ -98,7 +98,7 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
   completedSteps: [{
     type: String,
     enum: [
-      'welcome', 'connect_linkedin', 'upload_resume', 'connect_github',
+      'welcome', 'linkedin_pdf', 'connect_linkedin', 'upload_resume', 'connect_github',
       'connect_portfolio', 'career_goals', 'content_experience',
       'voice_training', 'ai_analysis', 'results',
     ],
@@ -107,7 +107,7 @@ const OnboardingStateSchema = new Schema<IOnboardingState>({
     step: {
       type: String,
       enum: [
-        'welcome', 'connect_linkedin', 'upload_resume', 'connect_github',
+        'welcome', 'linkedin_pdf', 'connect_linkedin', 'upload_resume', 'connect_github',
         'connect_portfolio', 'career_goals', 'content_experience',
         'voice_training', 'ai_analysis', 'results',
       ],
